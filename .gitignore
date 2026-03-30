@@ -3,3 +3,4 @@ infra/terraform.tfvars
 *.tfstate
 *.tfstate.backup
 .env
+frontend/.env
