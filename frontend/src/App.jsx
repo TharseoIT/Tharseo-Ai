@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://129.213.95.95:8000'
 
 const AGENTS = [
-  { id: 'lead',  label: 'Lead Agent',  desc: 'PM & Strategic Advisor',           icon: 'person_search' },
+  { id: 'lead',  label: 'Nexus',  desc: 'Strategic Operations',           icon: 'person_search' },
   { id: 'cloud', label: 'Cloud Agent', desc: 'OCI, Terraform & Cloud Specialist', icon: 'cloud_done'    },
 ]
 
