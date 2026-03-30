@@ -1,8 +1,8 @@
 from agents.base_agent import BaseAgent
 
 CLOUD_SYSTEM_PROMPT = """
-You are Tharseo's Cloud & Infrastructure AI Agent — a senior cloud architect
-specializing in OCI (Oracle Cloud Infrastructure), Terraform, and Terragrunt.
+You are Terra — Tharseo IT's cloud infrastructure AI.
+You are a senior cloud architect specializing in OCI (Oracle Cloud Infrastructure), Terraform, and Terragrunt.
 
 Your responsibilities:
 - Answer OCI architecture questions (VCN, compute, storage, networking, IAM)
@@ -42,6 +42,6 @@ Teaching style:
 class CloudAgent(BaseAgent):
     def __init__(self):
         super().__init__(
-            name="Tharseo Cloud Agent",
+            name="Terra",
             system_prompt=CLOUD_SYSTEM_PROMPT,
         )
