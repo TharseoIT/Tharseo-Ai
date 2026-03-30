@@ -77,9 +77,7 @@ export default function App() {
         {/* Brand */}
         <div className="px-6 mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-primary-container flex items-center justify-center">
-              <Icon name="architecture" className="text-primary text-xl" />
-            </div>
+            <img src="/tharseo-logo.svg" alt="Tharseo" className="w-10 h-10" />
             <div>
               <h1 className="font-headline text-xl font-bold text-primary tracking-tighter">Tharseo AI</h1>
               <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant opacity-60">Your AI team, always on.</p>
@@ -106,8 +104,8 @@ export default function App() {
               onClick={() => switchAgent(a.id)}
               className={`w-full text-left px-6 py-3.5 flex items-center gap-3 transition-all text-sm font-headline tracking-tight
                 ${activeAgent === a.id
-                  ? 'border-l-2 border-secondary bg-primary-container/20 text-primary font-semibold'
-                  : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'}`}
+                  ? 'border-l-2 border-tharseo-yellow bg-tharseo-teal/20 text-tharseo-green font-semibold'
+                  : 'text-on-surface-variant hover:text-tharseo-green hover:bg-surface-container'}`}
             >
               <Icon name={a.icon} />
               {a.label}
@@ -147,8 +145,8 @@ export default function App() {
           {/* Empty state */}
           {messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-24">
-              <div className="w-20 h-20 rounded-2xl bg-surface-container flex items-center justify-center">
-                <Icon name="architecture" className="text-5xl text-primary" />
+              <div className="w-24 h-24 rounded-2xl bg-surface-container flex items-center justify-center p-3">
+                <img src="/tharseo-logo.svg" alt="Tharseo" className="w-full h-full" />
               </div>
               <div>
                 <h2 className="font-headline text-4xl font-extrabold tracking-tighter text-on-surface">Tharseo AI</h2>

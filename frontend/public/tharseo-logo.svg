@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" fill="none">
+  <!-- Cloud body outline -->
+  <path d="M95 58 C105 58 112 51 112 41 C112 31 104 24 94 24 C93 24 92 24 91 25 C88 17 80 12 71 12 C62 12 54 17 51 25 C50 24 48 24 47 24 C37 24 29 31 29 41 C29 51 36 58 46 58 Z" fill="none" stroke="#95B552" stroke-width="3.5" stroke-linejoin="round"/>
+  <!-- Horizontal lines (sunrise/data style) at bottom of cloud -->
+  <clipPath id="cloudClip">
+    <path d="M95 58 C105 58 112 51 112 41 C112 31 104 24 94 24 C93 24 92 24 91 25 C88 17 80 12 71 12 C62 12 54 17 51 25 C50 24 48 24 47 24 C37 24 29 31 29 41 C29 51 36 58 46 58 Z"/>
+  </clipPath>
+  <g clip-path="url(#cloudClip)">
+    <rect x="29" y="44" width="83" height="3.5" fill="#95B552" opacity="0.9"/>
+    <rect x="29" y="49.5" width="83" height="3" fill="#95B552" opacity="0.65"/>
+    <rect x="29" y="54.5" width="83" height="2.5" fill="#95B552" opacity="0.4"/>
+  </g>
+  <!-- THARSEO text -->
+  <text x="70.5" y="76" font-family="'Inter', 'Arial', sans-serif" font-size="14" font-weight="700" letter-spacing="2.5" fill="#95B552" text-anchor="middle" dominant-baseline="middle">THARSEO</text>
+</svg>
