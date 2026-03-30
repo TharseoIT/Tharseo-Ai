@@ -18,7 +18,7 @@ class BaseAgent:
         self.memory: List = []  # Stores conversation history
         self.llm = ChatGroq(
             api_key=settings.groq_api_key,
-            model=settings.model_name,
+            model=settings.llm_model,
         )
 
     def chat(self, user_message: str) -> str:
