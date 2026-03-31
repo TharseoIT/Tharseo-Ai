@@ -3,8 +3,30 @@ import { useState, useRef, useEffect } from 'react'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://129.213.95.95:8000'
 
 const AGENTS = [
-  { id: 'lead',  label: 'Nexus',  desc: 'Strategic Operations',           icon: 'person_search' },
-  { id: 'cloud', label: 'Terra',  desc: 'Cloud Infrastructure',  icon: 'cloud_done'    },
+  {
+    id: 'lead',
+    label: 'Nexus',
+    desc: 'Strategic Operations',
+    icon: 'person_search',
+    about: 'Your company strategist. Ask about projects, priorities, decisions, and anything Tharseo-related.',
+    prompts: [
+      'What projects is Tharseo currently working on?',
+      'Help me write a project status update for Casey',
+      'What should we prioritize this week?',
+    ],
+  },
+  {
+    id: 'cloud',
+    label: 'Terra',
+    desc: 'Cloud Infrastructure',
+    icon: 'cloud_done',
+    about: 'Your cloud architect. Ask about OCI, Terraform, Terragrunt, networking, and infrastructure.',
+    prompts: [
+      'How do I create a VCN in OCI with Terraform?',
+      "What's the difference between an NSG and a Security List?",
+      'Review my Terragrunt folder structure',
+    ],
+  },
 ]
 
 function Icon({ name, className = '' }) {
@@ -144,24 +166,49 @@ export default function App() {
 
           {/* Empty state */}
           {messages.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-24">
-              <div className="w-24 h-24 rounded-2xl bg-surface-container flex items-center justify-center p-3">
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-16">
+              <div className="w-20 h-20 rounded-2xl bg-surface-container flex items-center justify-center p-3">
                 <img src="/tharseo-logo.svg" alt="Tharseo" className="w-full h-full" />
               </div>
               <div>
                 <h2 className="font-headline text-4xl font-extrabold tracking-tighter text-on-surface">Tharseo AI</h2>
-                <p className="text-on-surface-variant mt-2 text-sm">Your AI team, always on.</p>
+                <p className="text-on-surface-variant mt-2 text-sm">Your AI team, always on. Select an agent below or click any prompt to get started.</p>
               </div>
-              <div className="grid grid-cols-2 gap-4 mt-4 max-w-xl text-left">
+
+              <div className="grid grid-cols-2 gap-6 max-w-3xl w-full text-left">
                 {AGENTS.map(a => (
-                  <div
-                    key={a.id}
-                    onClick={() => switchAgent(a.id)}
-                    className="p-5 rounded-xl bg-surface-container-low border border-outline-variant/10 hover:border-primary/20 transition-all cursor-pointer"
-                  >
-                    <Icon name={a.icon} className="text-primary mb-2 block" />
-                    <h4 className="font-headline font-bold text-sm mb-1 text-on-surface">{a.label}</h4>
-                    <p className="text-xs text-on-surface-variant/70 leading-relaxed">{a.desc}</p>
+                  <div key={a.id} className="flex flex-col rounded-xl bg-surface-container-low border border-outline-variant/10 overflow-hidden">
+                    {/* Agent header */}
+                    <button
+                      onClick={() => switchAgent(a.id)}
+                      className={`flex items-center gap-3 px-5 py-4 transition-all hover:bg-surface-container w-full text-left
+                        ${activeAgent === a.id ? 'border-l-2 border-tharseo-yellow' : 'border-l-2 border-transparent'}`}
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
+                        <Icon name={a.icon} className="text-primary" />
+                      </div>
+                      <div>
+                        <div className="font-headline font-bold text-sm text-on-surface">{a.label}</div>
+                        <div className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-label">{a.desc}</div>
+                      </div>
+                    </button>
+
+                    {/* About */}
+                    <p className="text-xs text-on-surface-variant/70 leading-relaxed px-5 pb-3">{a.about}</p>
+
+                    {/* Example prompts */}
+                    <div className="flex flex-col gap-1.5 px-5 pb-5">
+                      {a.prompts.map(prompt => (
+                        <button
+                          key={prompt}
+                          onClick={() => { switchAgent(a.id); setInput(prompt); }}
+                          className="text-left text-xs text-on-surface-variant hover:text-primary bg-surface-container hover:bg-surface-container-high px-3 py-2.5 rounded-lg transition-all flex items-center gap-2 group"
+                        >
+                          <Icon name="arrow_forward" className="text-sm text-on-surface-variant/30 group-hover:text-primary shrink-0" />
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
