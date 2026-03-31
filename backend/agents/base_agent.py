@@ -7,35 +7,29 @@ from typing import List
 class BaseAgent:
     """
     Base class for all Tharseo AI agents.
-    Each agent has a name, a role (system prompt), and conversation memory.
-    Think of it like hiring an employee — you tell them their job description once
-    and they remember the whole conversation.
+    Stateless — conversation history is passed in per request from the database.
     """
 
     def __init__(self, name: str, system_prompt: str):
         self.name = name
         self.system_prompt = system_prompt
-        self.memory: List = []  # Stores conversation history
         self.llm = ChatGroq(
             api_key=settings.groq_api_key,
             model=settings.llm_model,
         )
 
-    def chat(self, user_message: str) -> str:
-        # Add user message to memory
-        self.memory.append(HumanMessage(content=user_message))
+    def chat(self, user_message: str, history: List) -> str:
+        """
+        history: list of dicts [{"role": "user"|"ai", "content": "..."}]
+        loaded from the database by the caller.
+        """
+        lc_history = []
+        for msg in history:
+            if msg["role"] == "user":
+                lc_history.append(HumanMessage(content=msg["content"]))
+            else:
+                lc_history.append(AIMessage(content=msg["content"]))
 
-        # Build full message list: system prompt + conversation history
-        messages = [SystemMessage(content=self.system_prompt)] + self.memory
-
-        # Call Groq API
+        messages = [SystemMessage(content=self.system_prompt)] + lc_history + [HumanMessage(content=user_message)]
         response = self.llm.invoke(messages)
-
-        # Add AI response to memory so next message has full context
-        self.memory.append(AIMessage(content=response.content))
-
         return response.content
-
-    def clear_memory(self):
-        """Reset conversation history — fresh start."""
-        self.memory = []

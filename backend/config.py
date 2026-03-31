@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     groq_api_key: str
     llm_model: str = "llama-3.3-70b-versatile"
     app_name: str = "Tharseo AI"
+    database_url: str = "postgresql://tharseo:tharseo_ai_2026@localhost/tharseo_ai"
+    jwt_secret: str = "change-this-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 1440  # 24 hours
 
 
 settings = Settings()

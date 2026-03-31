@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import Login from './Login'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://129.213.95.95:8000'
 
@@ -33,7 +35,13 @@ function Icon({ name, className = '' }) {
   return <span className={`material-symbols-outlined ${className}`}>{name}</span>
 }
 
+function authHeaders(token) {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+}
+
 export default function App() {
+  const [token, setToken] = useState(() => localStorage.getItem('tharseo_token'))
+  const [username, setUsername] = useState(() => localStorage.getItem('tharseo_user') || '')
   const [activeAgent, setActiveAgent] = useState('lead')
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -42,9 +50,38 @@ export default function App() {
 
   const agent = AGENTS.find(a => a.id === activeAgent)
 
+  // Load history from DB whenever agent changes
+  useEffect(() => {
+    if (!token) return
+    setMessages([])
+    fetch(`${API_BASE}/conversations/${activeAgent}`, { headers: authHeaders(token) })
+      .then(r => {
+        if (r.status === 401) { handleLogout(); return null }
+        return r.json()
+      })
+      .then(data => {
+        if (!data) return
+        setMessages(data.map(m => ({ role: m.role, content: m.content, ts: new Date(m.ts) })))
+      })
+      .catch(() => {})
+  }, [activeAgent, token])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  function handleLogin(newToken, newUsername) {
+    setToken(newToken)
+    setUsername(newUsername)
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('tharseo_token')
+    localStorage.removeItem('tharseo_user')
+    setToken(null)
+    setUsername('')
+    setMessages([])
+  }
 
   async function sendMessage() {
     const text = input.trim()
@@ -57,43 +94,46 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(token),
         body: JSON.stringify({ message: text, agent: activeAgent }),
       })
+      if (res.status === 401) { handleLogout(); return }
       const data = await res.json()
       setMessages(prev => [...prev, { role: 'ai', content: data.response, ts: new Date() }])
     } catch {
-      setMessages(prev => [...prev, { role: 'ai', content: '⚠️ Could not reach the backend. Make sure the server is running.', ts: new Date() }])
+      setMessages(prev => [...prev, { role: 'ai', content: '⚠️ Could not reach the backend.', ts: new Date() }])
     } finally {
       setLoading(false)
     }
   }
 
   async function clearChat() {
-    try { await fetch(`${API_BASE}/chat/${activeAgent}/clear`, { method: 'POST' }) } catch {}
+    try {
+      await fetch(`${API_BASE}/chat/${activeAgent}/clear`, { method: 'POST', headers: authHeaders(token) })
+    } catch {}
     setMessages([])
   }
 
   function switchAgent(id) {
     setActiveAgent(id)
-    setMessages([])
   }
 
   function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
   function fmt(date) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return date instanceof Date && !isNaN(date)
+      ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : ''
   }
+
+  if (!token) return <Login onLogin={handleLogin} />
 
   return (
     <div className="dark flex h-screen overflow-hidden bg-background">
 
-      {/* ── Sidebar ─────────────────────────────────────────────────── */}
+      {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside className="w-[260px] h-screen fixed left-0 top-0 bg-surface-container-lowest flex flex-col py-6 z-50">
 
         {/* Brand */}
@@ -111,7 +151,7 @@ export default function App() {
         <div className="px-4 mb-6">
           <button
             onClick={clearChat}
-            className="w-full bg-primary-container hover:bg-[#366848] text-on-primary-container py-2.5 px-4 rounded flex items-center justify-center gap-2 transition-all font-headline font-semibold text-sm active:scale-95"
+            className="w-full bg-primary-container hover:bg-[#1f3d1a] text-on-primary-container py-2.5 px-4 rounded flex items-center justify-center gap-2 transition-all font-headline font-semibold text-sm active:scale-95"
           >
             <Icon name="add" className="text-sm" />
             New Session
@@ -135,19 +175,23 @@ export default function App() {
           ))}
         </nav>
 
-        {/* Clear memory */}
-        <div className="px-4 border-t border-outline-variant/10 pt-4">
+        {/* User + logout */}
+        <div className="px-4 border-t border-outline-variant/10 pt-4 space-y-1">
+          <div className="flex items-center gap-3 px-4 py-2">
+            <Icon name="account_circle" className="text-on-surface-variant" />
+            <span className="text-sm font-label text-on-surface-variant truncate">{username}</span>
+          </div>
           <button
-            onClick={clearChat}
-            className="w-full flex items-center gap-3 text-on-surface-variant hover:text-error px-4 py-3 transition-colors rounded hover:bg-error-container/10 text-sm font-headline"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 text-on-surface-variant hover:text-error px-4 py-2.5 transition-colors rounded hover:bg-error-container/10 text-sm font-headline"
           >
-            <Icon name="delete_sweep" />
-            Clear Chat
+            <Icon name="logout" />
+            Sign out
           </button>
         </div>
       </aside>
 
-      {/* ── Main ────────────────────────────────────────────────────── */}
+      {/* ── Main ────────────────────────────────────────────────── */}
       <main className="ml-[260px] flex flex-col h-screen bg-surface w-full">
 
         {/* Top bar */}
@@ -172,13 +216,12 @@ export default function App() {
               </div>
               <div>
                 <h2 className="font-headline text-4xl font-extrabold tracking-tighter text-on-surface">Tharseo AI</h2>
-                <p className="text-on-surface-variant mt-2 text-sm">Your AI team, always on. Select an agent below or click any prompt to get started.</p>
+                <p className="text-on-surface-variant mt-2 text-sm">Your AI team, always on. Select an agent or click a prompt to get started.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-6 max-w-3xl w-full text-left">
                 {AGENTS.map(a => (
                   <div key={a.id} className="flex flex-col rounded-xl bg-surface-container-low border border-outline-variant/10 overflow-hidden">
-                    {/* Agent header */}
                     <button
                       onClick={() => switchAgent(a.id)}
                       className={`flex items-center gap-3 px-5 py-4 transition-all hover:bg-surface-container w-full text-left
@@ -192,16 +235,12 @@ export default function App() {
                         <div className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-label">{a.desc}</div>
                       </div>
                     </button>
-
-                    {/* About */}
                     <p className="text-xs text-on-surface-variant/70 leading-relaxed px-5 pb-3">{a.about}</p>
-
-                    {/* Example prompts */}
                     <div className="flex flex-col gap-1.5 px-5 pb-5">
                       {a.prompts.map(prompt => (
                         <button
                           key={prompt}
-                          onClick={() => { switchAgent(a.id); setInput(prompt); }}
+                          onClick={() => { switchAgent(a.id); setInput(prompt) }}
                           className="text-left text-xs text-on-surface-variant hover:text-primary bg-surface-container hover:bg-surface-container-high px-3 py-2.5 rounded-lg transition-all flex items-center gap-2 group"
                         >
                           <Icon name="arrow_forward" className="text-sm text-on-surface-variant/30 group-hover:text-primary shrink-0" />
@@ -232,8 +271,27 @@ export default function App() {
                   </div>
                   <div className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">{agent.label} • {fmt(msg.ts)}</div>
                 </div>
-                <div className="bg-surface-container p-6 rounded-xl border-l-2 border-secondary/30 max-w-3xl w-full shadow-lg">
-                  <p className="font-body text-on-surface-variant text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                <div className="bg-surface-container p-6 rounded-xl border-l-2 border-secondary/30 max-w-3xl w-full shadow-lg prose-tharseo">
+                  <ReactMarkdown
+                    components={{
+                      p:      ({children}) => <p className="text-on-surface-variant text-sm leading-relaxed mb-3 last:mb-0">{children}</p>,
+                      h1:     ({children}) => <h1 className="font-headline font-bold text-on-surface text-lg mb-3 mt-4 first:mt-0">{children}</h1>,
+                      h2:     ({children}) => <h2 className="font-headline font-bold text-on-surface text-base mb-2 mt-4 first:mt-0">{children}</h2>,
+                      h3:     ({children}) => <h3 className="font-headline font-semibold text-on-surface text-sm mb-2 mt-3 first:mt-0">{children}</h3>,
+                      ul:     ({children}) => <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-on-surface-variant">{children}</ul>,
+                      ol:     ({children}) => <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-on-surface-variant">{children}</ol>,
+                      li:     ({children}) => <li className="leading-relaxed">{children}</li>,
+                      code:   ({inline, children}) => inline
+                        ? <code className="bg-surface-container-high text-primary px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>
+                        : <code className="block bg-surface-container-lowest text-primary p-4 rounded-lg text-xs font-mono overflow-x-auto mb-3 whitespace-pre">{children}</code>,
+                      pre:    ({children}) => <>{children}</>,
+                      strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
+                      a:      ({href, children}) => <a href={href} className="text-primary underline hover:text-tharseo-green-light" target="_blank" rel="noreferrer">{children}</a>,
+                      blockquote: ({children}) => <blockquote className="border-l-2 border-secondary/50 pl-4 italic text-on-surface-variant/70 my-3">{children}</blockquote>,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               </div>
             )
@@ -250,7 +308,7 @@ export default function App() {
               </div>
               <div className="bg-surface-container p-5 rounded-xl border-l-2 border-secondary/30 shadow-lg">
                 <div className="flex gap-1.5 items-center h-4">
-                  {[0, 1, 2].map(i => (
+                  {[0,1,2].map(i => (
                     <span key={i} className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
                   ))}
                 </div>
