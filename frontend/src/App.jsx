@@ -11,7 +11,7 @@ const AGENTS = [
     about: 'Your company strategist. Ask about projects, priorities, decisions, and anything Tharseo-related.',
     prompts: [
       'What projects is Tharseo currently working on?',
-      'Help me write a project status update for Casey',
+      'Help me write a project status update',
       'What should we prioritize this week?',
     ],
   },
