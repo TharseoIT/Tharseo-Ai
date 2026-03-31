@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -8,6 +8,10 @@ from agents.cloud_agent import CloudAgent
 from database import get_db, engine
 from models import User, Message
 import models
+import hmac
+import hashlib
+import base64
+import re
 from auth import hash_password, verify_password, create_access_token, get_current_user
 
 # Create all tables on startup
@@ -163,3 +167,80 @@ def list_agents():
             {"id": "cloud", "name": "Terra", "description": "Cloud Infrastructure"},
         ]
     }
+
+
+# ── Teams Webhook ─────────────────────────────────────────────────────────────
+
+def strip_html(text: str) -> str:
+    """Remove HTML tags that Teams includes in messages."""
+    return re.sub(r"<[^>]+>", "", text).strip()
+
+
+def verify_teams_hmac(body: bytes, auth_header: str, secret: str) -> bool:
+    """Verify the HMAC-SHA256 signature Teams sends with each request."""
+    try:
+        mac = hmac.new(base64.b64decode(secret), body, hashlib.sha256)
+        expected = "HMAC " + base64.b64encode(mac.digest()).decode()
+        return hmac.compare_digest(expected, auth_header)
+    except Exception:
+        return False
+
+
+def get_or_create_teams_user(db: Session) -> User:
+    """Single shared user for all Teams bot messages."""
+    user = db.query(User).filter(User.username == "teams_bot").first()
+    if not user:
+        from auth import hash_password
+        user = User(username="teams_bot", password_hash=hash_password("teams_internal"))
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
+
+@app.post("/teams/webhook")
+async def teams_webhook(request: Request, db: Session = Depends(get_db)):
+    body = await request.body()
+
+    # Verify HMAC if secret is configured
+    if settings.teams_webhook_secret:
+        auth_header = request.headers.get("Authorization", "")
+        if not verify_teams_hmac(body, auth_header, settings.teams_webhook_secret):
+            raise HTTPException(status_code=401, detail="Invalid Teams HMAC signature")
+
+    payload = await request.json() if not body else __import__("json").loads(body)
+    raw_text = strip_html(payload.get("text", ""))
+
+    if not raw_text:
+        return {"type": "message", "text": "I didn't catch that — try mentioning me with a question."}
+
+    # Route: @Terra → cloud agent, everything else → Nexus
+    if re.search(r"@terra", raw_text, re.IGNORECASE):
+        agent_id = "cloud"
+    else:
+        agent_id = "lead"
+
+    # Strip the @mention from the message
+    clean_text = re.sub(r"@(nexus|terra)\s*", "", raw_text, flags=re.IGNORECASE).strip()
+    if not clean_text:
+        agent_name = "Terra" if agent_id == "cloud" else "Nexus"
+        return {"type": "message", "text": f"Hi! I'm {agent_name}. Ask me anything."}
+
+    # Load Teams conversation history and respond
+    teams_user = get_or_create_teams_user(db)
+    rows = (
+        db.query(Message)
+        .filter_by(user_id=teams_user.id, agent_id=agent_id)
+        .order_by(Message.created_at)
+        .limit(20)  # Keep last 20 messages for context
+        .all()
+    )
+    history = [{"role": m.role, "content": m.content} for m in rows]
+    response_text = agents[agent_id].chat(clean_text, history)
+
+    # Persist to DB
+    db.add(Message(user_id=teams_user.id, agent_id=agent_id, role="user", content=clean_text))
+    db.add(Message(user_id=teams_user.id, agent_id=agent_id, role="ai", content=response_text))
+    db.commit()
+
+    return {"type": "message", "text": response_text}

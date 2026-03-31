@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-this-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
+    teams_webhook_secret: str = ""  # Set after creating Teams outgoing webhook
 
 
 settings = Settings()
