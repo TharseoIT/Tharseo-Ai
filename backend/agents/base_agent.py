@@ -1,31 +1,38 @@
 from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from config import settings
-from typing import List
+from typing import List, Optional
 
 
 class BaseAgent:
     """
     Base class for all Tharseo AI agents.
     Stateless — history is passed in per request from the database.
-    Supports optional tools via LangChain tool calling.
+    Supports optional search tool via context injection.
     """
 
-    def __init__(self, name: str, system_prompt: str, tools: List = None):
+    def __init__(self, name: str, system_prompt: str, search_tool=None):
         self.name = name
         self.system_prompt = system_prompt
-        self.tools = tools or []
+        self.search_tool = search_tool
         self.llm = ChatGroq(
             api_key=settings.groq_api_key,
             model=settings.llm_model,
         )
-        # Bind tools to LLM if any provided
-        self.llm_with_tools = self.llm.bind_tools(self.tools) if self.tools else self.llm
+
+    def _should_search(self, message: str) -> bool:
+        """Detect if the question likely needs live/current information."""
+        triggers = [
+            "latest", "current", "today", "recent", "now", "price", "pricing",
+            "cost", "2024", "2025", "2026", "new version", "release", "update",
+            "search", "look up", "find", "what is the", "how much", "available",
+        ]
+        lower = message.lower()
+        return any(t in lower for t in triggers)
 
     def chat(self, user_message: str, history: List) -> str:
         """
         history: list of dicts [{"role": "user"|"ai", "content": "..."}]
-        Runs an agentic tool-calling loop if tools are available.
         """
         lc_history = []
         for msg in history:
@@ -34,27 +41,15 @@ class BaseAgent:
             else:
                 lc_history.append(AIMessage(content=msg["content"]))
 
-        messages = [SystemMessage(content=self.system_prompt)] + lc_history + [HumanMessage(content=user_message)]
+        # Inject search results into system prompt if tool available and needed
+        system = self.system_prompt
+        if self.search_tool and self._should_search(user_message):
+            try:
+                results = self.search_tool.run(user_message)
+                system += f"\n\n---\nLive web search results (use these to supplement your answer):\n{results}\n---"
+            except Exception:
+                pass  # Search failure is non-fatal — answer from training data
 
-        if not self.tools:
-            response = self.llm.invoke(messages)
-            return response.content
-
-        # Agentic loop — agent can call tools up to 5 times before final answer
-        tool_map = {t.name: t for t in self.tools}
-        for _ in range(5):
-            response = self.llm_with_tools.invoke(messages)
-
-            if not response.tool_calls:
-                return response.content
-
-            # Execute each tool call and feed results back
-            messages.append(response)
-            for tc in response.tool_calls:
-                try:
-                    result = tool_map[tc["name"]].invoke(tc["args"])
-                except Exception as e:
-                    result = f"Tool error: {str(e)}"
-                messages.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
-
+        messages = [SystemMessage(content=system)] + lc_history + [HumanMessage(content=user_message)]
+        response = self.llm.invoke(messages)
         return response.content
