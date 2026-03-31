@@ -281,10 +281,13 @@ export default function App() {
                       ul:     ({children}) => <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-on-surface-variant">{children}</ul>,
                       ol:     ({children}) => <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-on-surface-variant">{children}</ol>,
                       li:     ({children}) => <li className="leading-relaxed">{children}</li>,
-                      code:   ({inline, children}) => inline
-                        ? <code className="bg-surface-container-high text-primary px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>
-                        : <code className="block bg-surface-container-lowest text-primary p-4 rounded-lg text-xs font-mono overflow-x-auto mb-3 whitespace-pre">{children}</code>,
-                      pre:    ({children}) => <>{children}</>,
+                      code:   ({node, inline, className, children, ...props}) => {
+                        const isBlock = !inline
+                        return isBlock
+                          ? <pre className="bg-surface-container-lowest rounded-lg p-4 overflow-x-auto mb-3 mt-1"><code className="text-primary text-xs font-mono whitespace-pre">{children}</code></pre>
+                          : <code className="bg-surface-container-high text-primary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>{children}</code>
+                      },
+                      pre: ({children}) => <>{children}</>,
                       strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
                       a:      ({href, children}) => <a href={href} className="text-primary underline hover:text-tharseo-green-light" target="_blank" rel="noreferrer">{children}</a>,
                       blockquote: ({children}) => <blockquote className="border-l-2 border-secondary/50 pl-4 italic text-on-surface-variant/70 my-3">{children}</blockquote>,
