@@ -1,5 +1,6 @@
 from langchain_community.tools import DuckDuckGoSearchRun
 from agents.base_agent import BaseAgent
+from tools.oci_tools import OCIContextTool
 
 
 CLOUD_SYSTEM_PROMPT = """
@@ -45,4 +46,5 @@ class CloudAgent(BaseAgent):
             name="Terra",
             system_prompt=CLOUD_SYSTEM_PROMPT,
             search_tool=DuckDuckGoSearchRun(),
+            oci_tool=OCIContextTool(),
         )

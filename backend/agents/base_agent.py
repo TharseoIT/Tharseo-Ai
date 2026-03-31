@@ -11,10 +11,11 @@ class BaseAgent:
     Supports optional search tool via context injection.
     """
 
-    def __init__(self, name: str, system_prompt: str, search_tool=None):
+    def __init__(self, name: str, system_prompt: str, search_tool=None, oci_tool=None):
         self.name = name
         self.system_prompt = system_prompt
         self.search_tool = search_tool
+        self.oci_tool = oci_tool
         self.llm = ChatGroq(
             api_key=settings.groq_api_key,
             model=settings.llm_model,
@@ -49,6 +50,15 @@ class BaseAgent:
                 system += f"\n\n---\nLive web search results (use these to supplement your answer):\n{results}\n---"
             except Exception:
                 pass  # Search failure is non-fatal — answer from training data
+
+        # Inject live OCI resource data if tool available and query is OCI-related
+        if self.oci_tool:
+            try:
+                oci_data = self.oci_tool.run(user_message)
+                if oci_data:
+                    system += f"\n\n---\nLive OCI environment snapshot (use this to answer questions about current infrastructure):\n{oci_data}\n---"
+            except Exception:
+                pass  # OCI query failure is non-fatal
 
         messages = [SystemMessage(content=system)] + lc_history + [HumanMessage(content=user_message)]
         response = self.llm.invoke(messages)
