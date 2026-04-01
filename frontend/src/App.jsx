@@ -103,6 +103,7 @@ export default function App() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const fileInputRef = useRef(null)
+  const chatFileInputRef = useRef(null)
   const bottomRef = useRef(null)
 
   const AGENTS = ALL_AGENTS.filter(a => (ROLE_AGENTS[userRole] || []).includes(a.id))
@@ -504,6 +505,15 @@ export default function App() {
         <div className="px-10 pb-8 bg-gradient-to-t from-surface via-surface/90 to-transparent">
           <div className="max-w-4xl mx-auto">
             <div className="bg-surface-container-high/80 backdrop-blur-2xl rounded-xl p-2 border border-outline-variant/20 shadow-2xl flex items-end gap-2 focus-within:border-primary/30 transition-all">
+              <button
+                onClick={() => chatFileInputRef.current?.click()}
+                disabled={uploading}
+                title="Upload a document to your Knowledge Base"
+                className="p-3 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center mb-0.5 shrink-0"
+              >
+                <Icon name={uploading ? 'hourglass_empty' : 'attach_file'} />
+              </button>
+              <input ref={chatFileInputRef} type="file" accept=".pdf,.docx,.pptx,.txt" onChange={handleUpload} className="hidden" />
               <textarea
                 rows={1}
                 value={input}
