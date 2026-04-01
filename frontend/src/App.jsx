@@ -69,9 +69,9 @@ const ALL_AGENTS = [
 
 const ROLE_AGENTS = {
   admin:     ['lead', 'cloud', 'executive', 'sales', 'security'],
-  executive: ['executive'],
-  sales:     ['sales'],
-  security:  ['security'],
+  executive: ['lead', 'executive', 'sales', 'security'],
+  sales:     ['lead', 'executive', 'sales', 'security'],
+  security:  ['lead', 'executive', 'sales', 'security'],
 }
 
 function Icon({ name, className = '' }) {
