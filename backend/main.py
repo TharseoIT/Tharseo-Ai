@@ -4,6 +4,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from agents.lead_agent import LeadAgent
 from agents.cloud_agent import CloudAgent
+from agents.executive_agent import ExecutiveAgent
+from agents.sales_agent import SalesAgent
+from agents.security_agent import SecurityAgent
 from database import get_db, engine
 from models import User, Message
 import models
@@ -27,9 +30,25 @@ app.add_middleware(
 )
 
 agents = {
-    "lead":  LeadAgent(),
-    "cloud": CloudAgent(),
+    "lead":      LeadAgent(),
+    "cloud":     CloudAgent(),
+    "executive": ExecutiveAgent(),
+    "sales":     SalesAgent(),
+    "security":  SecurityAgent(),
 }
+
+ROLE_AGENTS: dict[str, list[str]] = {
+    "admin":     ["lead", "cloud", "executive", "sales", "security"],
+    "executive": ["executive"],
+    "sales":     ["sales"],
+    "security":  ["security"],
+}
+
+
+def check_agent_access(user: User, agent_id: str):
+    allowed = ROLE_AGENTS.get(user.user_role, [])
+    if agent_id not in allowed:
+        raise HTTPException(status_code=403, detail="You do not have access to this agent.")
 
 
 # ── Auth schemas ────────────────────────────────────────────────────────────
@@ -49,7 +68,14 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
-    username: str   # Display name returned to frontend
+    username: str
+    user_role: str
+
+
+class UserMeResponse(BaseModel):
+    username: str
+    email: str
+    user_role: str
 
 
 class ChangePasswordRequest(BaseModel):
@@ -94,7 +120,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
 
     token = create_access_token({"sub": user.email})
-    return TokenResponse(access_token=token, token_type="bearer", username=user.username)
+    return TokenResponse(access_token=token, token_type="bearer", username=user.username, user_role=user.user_role)
 
 
 @app.post("/auth/login", response_model=TokenResponse)
@@ -104,7 +130,12 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     token = create_access_token({"sub": user.email})
-    return TokenResponse(access_token=token, token_type="bearer", username=user.username)
+    return TokenResponse(access_token=token, token_type="bearer", username=user.username, user_role=user.user_role)
+
+
+@app.get("/auth/me", response_model=UserMeResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    return UserMeResponse(username=current_user.username, email=current_user.email, user_role=current_user.user_role)
 
 
 @app.post("/auth/change-password")
@@ -132,6 +163,7 @@ def chat(
 ):
     if request.agent not in agents:
         raise HTTPException(status_code=400, detail=f"Unknown agent '{request.agent}'")
+    check_agent_access(current_user, request.agent)
 
     # Load this user's history for this agent from DB
     rows = (
@@ -159,6 +191,7 @@ def get_conversation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    check_agent_access(current_user, agent_name)
     rows = (
         db.query(Message)
         .filter_by(user_id=current_user.id, agent_id=agent_name)
@@ -174,6 +207,7 @@ def clear_memory(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    check_agent_access(current_user, agent_name)
     db.query(Message).filter_by(user_id=current_user.id, agent_id=agent_name).delete()
     db.commit()
     return {"status": "cleared", "agent": agent_name}
@@ -192,13 +226,16 @@ def health():
 
 
 @app.get("/agents")
-def list_agents():
-    return {
-        "agents": [
-            {"id": "lead",  "name": "Nexus", "description": "Strategic Operations"},
-            {"id": "cloud", "name": "Terra", "description": "Cloud Infrastructure"},
-        ]
-    }
+def list_agents(current_user: User = Depends(get_current_user)):
+    all_agents = [
+        {"id": "lead",      "name": "Nexus",    "description": "Strategic Operations"},
+        {"id": "cloud",     "name": "Terra",    "description": "Cloud Infrastructure"},
+        {"id": "executive", "name": "Apex",     "description": "Executive Intelligence"},
+        {"id": "sales",     "name": "Forge",    "description": "Sales & Growth"},
+        {"id": "security",  "name": "Sentinel", "description": "Security & Compliance"},
+    ]
+    allowed = ROLE_AGENTS.get(current_user.user_role, [])
+    return {"agents": [a for a in all_agents if a["id"] in allowed]}
 
 
 # ── Teams Webhook ─────────────────────────────────────────────────────────────

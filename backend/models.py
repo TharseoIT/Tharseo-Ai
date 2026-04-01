@@ -11,6 +11,7 @@ class User(Base):
     username = Column(String(100), nullable=False)           # Display name e.g. "Casey Carter"
     email = Column(String(255), unique=True, index=True, nullable=True)  # Login identifier
     password_hash = Column(String(255), nullable=False)
+    user_role = Column(String(20), nullable=False, default="security")  # admin, executive, sales, security
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     messages = relationship("Message", back_populates="user", cascade="all, delete-orphan")

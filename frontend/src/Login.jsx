@@ -29,7 +29,8 @@ export default function Login({ onLogin }) {
 
       localStorage.setItem('tharseo_token', data.access_token)
       localStorage.setItem('tharseo_user', data.username)
-      onLogin(data.access_token, data.username)
+      localStorage.setItem('tharseo_role', data.user_role)
+      onLogin(data.access_token, data.username, data.user_role)
     } catch {
       setError('Could not reach the server. Is the backend running?')
     } finally {

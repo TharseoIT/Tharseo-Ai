@@ -4,7 +4,7 @@ import Login from './Login'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://129.213.95.95:8000'
 
-const AGENTS = [
+const ALL_AGENTS = [
   {
     id: 'lead',
     label: 'Nexus',
@@ -29,7 +29,50 @@ const AGENTS = [
       'Review my Terragrunt folder structure',
     ],
   },
+  {
+    id: 'executive',
+    label: 'Apex',
+    desc: 'Executive Intelligence',
+    icon: 'business_center',
+    about: 'Your executive advisor. Strategy, communications, business decisions, and company intelligence.',
+    prompts: [
+      'Give me a summary of our current business priorities',
+      'Help me draft a board update',
+      'What are our biggest risks this quarter?',
+    ],
+  },
+  {
+    id: 'sales',
+    label: 'Forge',
+    desc: 'Sales & Growth',
+    icon: 'trending_up',
+    about: 'Your sales strategist. Proposals, pipeline, client strategy, and competitive intelligence.',
+    prompts: [
+      'Help me write a proposal for a new client',
+      'How should I handle a stalled deal?',
+      'What are our key differentiators against competitors?',
+    ],
+  },
+  {
+    id: 'security',
+    label: 'Sentinel',
+    desc: 'Security & Compliance',
+    icon: 'security',
+    about: 'Your security advisor. Cybersecurity, compliance frameworks, risk assessments, and incident response.',
+    prompts: [
+      'Review our current security posture',
+      'What compliance frameworks should we prioritize?',
+      'Help me write a security incident response plan',
+    ],
+  },
 ]
+
+const ROLE_AGENTS = {
+  admin:     ['lead', 'cloud', 'executive', 'sales', 'security'],
+  executive: ['executive'],
+  sales:     ['sales'],
+  security:  ['security'],
+}
 
 function Icon({ name, className = '' }) {
   return <span className={`material-symbols-outlined ${className}`}>{name}</span>
@@ -42,7 +85,11 @@ function authHeaders(token) {
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('tharseo_token'))
   const [username, setUsername] = useState(() => localStorage.getItem('tharseo_user') || '')
-  const [activeAgent, setActiveAgent] = useState('lead')
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('tharseo_role') || 'security')
+  const [activeAgent, setActiveAgent] = useState(() => {
+    const role = localStorage.getItem('tharseo_role') || 'security'
+    return (ROLE_AGENTS[role] || ['security'])[0]
+  })
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -53,7 +100,8 @@ export default function App() {
   const [pwLoading, setPwLoading] = useState(false)
   const bottomRef = useRef(null)
 
-  const agent = AGENTS.find(a => a.id === activeAgent)
+  const AGENTS = ALL_AGENTS.filter(a => (ROLE_AGENTS[userRole] || []).includes(a.id))
+  const agent = AGENTS.find(a => a.id === activeAgent) || AGENTS[0]
 
   // Load history from DB whenever agent changes
   useEffect(() => {
@@ -75,16 +123,23 @@ export default function App() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  function handleLogin(newToken, newUsername) {
+  function handleLogin(newToken, newUsername, newRole) {
+    localStorage.setItem('tharseo_token', newToken)
+    localStorage.setItem('tharseo_user', newUsername)
+    localStorage.setItem('tharseo_role', newRole)
     setToken(newToken)
     setUsername(newUsername)
+    setUserRole(newRole)
+    setActiveAgent((ROLE_AGENTS[newRole] || ['security'])[0])
   }
 
   function handleLogout() {
     localStorage.removeItem('tharseo_token')
     localStorage.removeItem('tharseo_user')
+    localStorage.removeItem('tharseo_role')
     setToken(null)
     setUsername('')
+    setUserRole('security')
     setMessages([])
   }
 
