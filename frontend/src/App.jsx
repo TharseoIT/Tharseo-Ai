@@ -46,6 +46,11 @@ export default function App() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showChangePw, setShowChangePw] = useState(false)
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState(false)
+  const [pwLoading, setPwLoading] = useState(false)
   const bottomRef = useRef(null)
 
   const agent = AGENTS.find(a => a.id === activeAgent)
@@ -118,6 +123,25 @@ export default function App() {
     setActiveAgent(id)
   }
 
+  async function handleChangePw(e) {
+    e.preventDefault()
+    setPwError('')
+    if (pwForm.next !== pwForm.confirm) { setPwError('New passwords do not match'); return }
+    setPwLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ current_password: pwForm.current, new_password: pwForm.next }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setPwError(data.detail || 'Something went wrong'); return }
+      setPwSuccess(true)
+      setTimeout(() => { setShowChangePw(false); setPwForm({ current: '', next: '', confirm: '' }); setPwSuccess(false) }, 1500)
+    } catch { setPwError('Could not reach the server') }
+    finally { setPwLoading(false) }
+  }
+
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
@@ -179,8 +203,15 @@ export default function App() {
         <div className="px-4 border-t border-outline-variant/10 pt-4 space-y-1">
           <div className="flex items-center gap-3 px-4 py-2">
             <Icon name="account_circle" className="text-on-surface-variant" />
-            <span className="text-sm font-label text-on-surface-variant truncate">{username}</span>
+            <span className="text-sm font-label text-on-surface-variant truncate flex-1">{username}</span>
           </div>
+          <button
+            onClick={() => { setShowChangePw(true); setPwError(''); setPwSuccess(false) }}
+            className="w-full flex items-center gap-3 text-on-surface-variant hover:text-primary px-4 py-2.5 transition-colors rounded hover:bg-surface-container text-sm font-headline"
+          >
+            <Icon name="lock" />
+            Change password
+          </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 text-on-surface-variant hover:text-error px-4 py-2.5 transition-colors rounded hover:bg-error-container/10 text-sm font-headline"
@@ -350,6 +381,55 @@ export default function App() {
         </div>
 
       </main>
+      {/* ── Change Password Modal ───────────────────────────────── */}
+      {showChangePw && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-container rounded-xl p-8 w-full max-w-sm border border-outline-variant/10 shadow-2xl">
+            <h2 className="font-headline font-bold text-on-surface mb-6 text-sm uppercase tracking-widest">Change Password</h2>
+            {pwSuccess ? (
+              <p className="text-primary text-sm font-label text-center py-4">Password updated successfully.</p>
+            ) : (
+              <form onSubmit={handleChangePw} className="flex flex-col gap-4">
+                {[
+                  { label: 'Current Password', key: 'current' },
+                  { label: 'New Password',     key: 'next' },
+                  { label: 'Confirm New',      key: 'confirm' },
+                ].map(({ label, key }) => (
+                  <div key={key}>
+                    <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant block mb-1.5">{label}</label>
+                    <input
+                      type="password"
+                      value={pwForm[key]}
+                      onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
+                      required
+                      className="w-full bg-surface-container-high border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface text-sm font-body focus:outline-none focus:border-primary/50 transition-colors"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                ))}
+                {pwError && <p className="text-error text-xs font-label">{pwError}</p>}
+                <div className="flex gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePw(false)}
+                    className="flex-1 py-2.5 rounded-lg border border-outline-variant/20 text-on-surface-variant text-sm font-headline hover:bg-surface-container-high transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={pwLoading}
+                    className="flex-1 bg-primary text-on-primary py-2.5 rounded-lg text-sm font-headline font-bold hover:brightness-110 disabled:opacity-50 transition-all"
+                  >
+                    {pwLoading ? 'Saving...' : 'Update'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
