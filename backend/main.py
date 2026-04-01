@@ -12,6 +12,7 @@ import hashlib
 import base64
 import re
 from auth import hash_password, verify_password, create_access_token, get_current_user
+from config import settings
 
 # Create all tables on startup
 models.Base.metadata.create_all(bind=engine)
