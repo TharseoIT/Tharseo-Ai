@@ -3,8 +3,7 @@ import { useState } from 'react'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://129.213.95.95:8000'
 
 export default function Login({ onLogin }) {
-  const [mode, setMode] = useState('login')   // 'login' | 'register'
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -15,24 +14,13 @@ export default function Login({ onLogin }) {
     setLoading(true)
 
     try {
-      let res, data
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-      if (mode === 'login') {
-        const form = new URLSearchParams({ username, password })
-        res = await fetch(`${API_BASE}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: form,
-        })
-      } else {
-        res = await fetch(`${API_BASE}/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        })
-      }
-
-      data = await res.json()
+      const data = await res.json()
 
       if (!res.ok) {
         setError(data.detail || 'Something went wrong')
@@ -67,20 +55,20 @@ export default function Login({ onLogin }) {
         {/* Card */}
         <div className="bg-surface-container rounded-xl p-8 border border-outline-variant/10">
           <h2 className="font-headline font-bold text-on-surface mb-6 text-sm uppercase tracking-widest">
-            {mode === 'login' ? 'Sign in' : 'Create account'}
+            Sign in
           </h2>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant block mb-1.5">Username</label>
+              <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant block mb-1.5">Work Email</label>
               <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
                 autoFocus
                 className="w-full bg-surface-container-high border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface text-sm font-body focus:outline-none focus:border-primary/50 transition-colors"
-                placeholder="e.g. antonio"
+                placeholder="you@tharseoit.com"
               />
             </div>
             <div>
@@ -104,20 +92,13 @@ export default function Login({ onLogin }) {
               disabled={loading}
               className="w-full bg-primary text-on-primary font-headline font-bold py-3 rounded-lg transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
-              {loading ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
+              {loading ? 'Please wait...' : 'Sign in'}
             </button>
           </form>
         </div>
 
-        {/* Toggle */}
         <p className="text-center text-on-surface-variant text-xs mt-6 font-label">
-          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}
-            className="text-primary hover:underline"
-          >
-            {mode === 'login' ? 'Create one' : 'Sign in'}
-          </button>
+          Need access? Contact Antonio.
         </p>
 
       </div>

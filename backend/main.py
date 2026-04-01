@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from agents.lead_agent import LeadAgent
@@ -35,14 +34,21 @@ agents = {
 # ── Auth schemas ────────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
-    username: str
+    name: str       # Display name e.g. "Casey Carter"
+    email: str      # Login identifier
+    password: str
+    admin_secret: str = ""
+
+
+class LoginRequest(BaseModel):
+    email: str
     password: str
 
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
-    username: str
+    username: str   # Display name returned to frontend
 
 
 # ── Chat schemas ─────────────────────────────────────────────────────────────
@@ -67,26 +73,31 @@ class MessageOut(BaseModel):
 
 @app.post("/auth/register", response_model=TokenResponse)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.username == request.username).first():
-        raise HTTPException(status_code=400, detail="Username already taken")
+    # Registration is closed unless admin_secret is provided or registration_open is True
+    if not settings.registration_open:
+        if not settings.admin_secret or request.admin_secret != settings.admin_secret:
+            raise HTTPException(status_code=403, detail="Registration is closed. Contact your administrator.")
+
+    if db.query(User).filter(User.email == request.email.lower()).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
     if len(request.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 
-    user = User(username=request.username, password_hash=hash_password(request.password))
+    user = User(username=request.name, email=request.email.lower(), password_hash=hash_password(request.password))
     db.add(user)
     db.commit()
 
-    token = create_access_token({"sub": user.username})
+    token = create_access_token({"sub": user.email})
     return TokenResponse(access_token=token, token_type="bearer", username=user.username)
 
 
 @app.post("/auth/login", response_model=TokenResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == request.email.lower()).first()
+    if not user or not verify_password(request.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
 
-    token = create_access_token({"sub": user.username})
+    token = create_access_token({"sub": user.email})
     return TokenResponse(access_token=token, token_type="bearer", username=user.username)
 
 

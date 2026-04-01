@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
     teams_webhook_secret: str = ""  # Set after creating Teams outgoing webhook
+    admin_secret: str = ""  # Required to create new accounts when registration is closed
+    registration_open: bool = False  # Set to True temporarily to allow self-registration
 
 
 settings = Settings()
