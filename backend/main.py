@@ -1,14 +1,20 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from pathlib import Path
+import os
+import tempfile
 from agents.lead_agent import LeadAgent
 from agents.cloud_agent import CloudAgent
 from agents.executive_agent import ExecutiveAgent
 from agents.sales_agent import SalesAgent
 from agents.security_agent import SecurityAgent
 from database import get_db, engine
-from models import User, Message
+from models import User, Message, Document, DocumentChunk
+from rag.extractor import extract_text, ALLOWED_EXTENSIONS
+from rag.chunker import chunk_text
+from rag.embedder import embed_texts, embed_query
 import models
 import hmac
 import hashlib
@@ -101,6 +107,14 @@ class MessageOut(BaseModel):
     ts: str
 
 
+class DocumentOut(BaseModel):
+    id: int
+    filename: str
+    file_type: str
+    chunk_count: int
+    created_at: str
+
+
 # ── Auth routes ───────────────────────────────────────────────────────────────
 
 @app.post("/auth/register", response_model=TokenResponse)
@@ -174,8 +188,8 @@ def chat(
     )
     history = [{"role": m.role, "content": m.content} for m in rows]
 
-    # Call the agent
-    response_text = agents[request.agent].chat(request.message, history)
+    # Call the agent (pass db + user_id for RAG retrieval)
+    response_text = agents[request.agent].chat(request.message, history, db=db, user_id=current_user.id)
 
     # Persist both messages
     db.add(Message(user_id=current_user.id, agent_id=request.agent, role="user", content=request.message))
@@ -211,6 +225,101 @@ def clear_memory(
     db.query(Message).filter_by(user_id=current_user.id, agent_id=agent_name).delete()
     db.commit()
     return {"status": "cleared", "agent": agent_name}
+
+
+# ── Document / RAG routes ─────────────────────────────────────────────────────
+
+@app.post("/documents/upload", response_model=DocumentOut)
+async def upload_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{suffix}'. Supported: {list(ALLOWED_EXTENSIONS.keys())}"
+        )
+    file_type = ALLOWED_EXTENSIONS[suffix]
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp_path = Path(tmp.name)
+        tmp.write(await file.read())
+
+    try:
+        raw_text = extract_text(tmp_path, file_type)
+        if not raw_text.strip():
+            raise HTTPException(status_code=422, detail="No text could be extracted from this file.")
+
+        chunks = chunk_text(raw_text)
+        if not chunks:
+            raise HTTPException(status_code=422, detail="Document produced no usable chunks.")
+
+        vectors = embed_texts(chunks)
+
+        doc = Document(
+            user_id=current_user.id,
+            filename=file.filename,
+            file_type=file_type,
+            chunk_count=len(chunks),
+        )
+        db.add(doc)
+        db.flush()  # get doc.id before committing
+
+        for i, (text, vector) in enumerate(zip(chunks, vectors)):
+            db.add(DocumentChunk(
+                document_id=doc.id,
+                user_id=current_user.id,
+                chunk_index=i,
+                content=text,
+                embedding=vector,
+            ))
+
+        db.commit()
+        db.refresh(doc)
+    finally:
+        os.unlink(tmp_path)
+
+    return DocumentOut(
+        id=doc.id,
+        filename=doc.filename,
+        file_type=doc.file_type,
+        chunk_count=doc.chunk_count,
+        created_at=doc.created_at.isoformat(),
+    )
+
+
+@app.get("/documents", response_model=list[DocumentOut])
+def list_documents(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    docs = (
+        db.query(Document)
+        .filter_by(user_id=current_user.id)
+        .order_by(Document.created_at.desc())
+        .all()
+    )
+    return [
+        DocumentOut(id=d.id, filename=d.filename, file_type=d.file_type,
+                    chunk_count=d.chunk_count, created_at=d.created_at.isoformat())
+        for d in docs
+    ]
+
+
+@app.delete("/documents/{doc_id}")
+def delete_document(
+    doc_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(Document).filter_by(id=doc_id, user_id=current_user.id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    db.delete(doc)
+    db.commit()
+    return {"status": "deleted", "id": doc_id}
 
 
 # ── Misc routes ───────────────────────────────────────────────────────────────

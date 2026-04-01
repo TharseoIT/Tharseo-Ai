@@ -16,3 +16,11 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.2.1
 python-multipart==0.0.12
+# RAG — document processing
+pypdf==4.3.1
+python-docx==1.1.2
+python-pptx==1.0.2
+# RAG — embeddings (HuggingFace, runs on CPU)
+sentence-transformers==3.3.1
+# RAG — numpy for cosine similarity (no pgvector needed)
+numpy==1.26.4

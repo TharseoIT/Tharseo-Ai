@@ -98,6 +98,11 @@ export default function App() {
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
   const [pwLoading, setPwLoading] = useState(false)
+  const [docs, setDocs] = useState([])
+  const [docsOpen, setDocsOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const fileInputRef = useRef(null)
   const bottomRef = useRef(null)
 
   const AGENTS = ALL_AGENTS.filter(a => (ROLE_AGENTS[userRole] || []).includes(a.id))
@@ -123,6 +128,14 @@ export default function App() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  useEffect(() => {
+    if (!token) { setDocs([]); return }
+    fetch(`${API_BASE}/documents`, { headers: authHeaders(token) })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setDocs(data))
+      .catch(() => {})
+  }, [token])
+
   function handleLogin(newToken, newUsername, newRole) {
     localStorage.setItem('tharseo_token', newToken)
     localStorage.setItem('tharseo_user', newUsername)
@@ -141,6 +154,7 @@ export default function App() {
     setUsername('')
     setUserRole('security')
     setMessages([])
+    setDocs([])
   }
 
   async function sendMessage() {
@@ -176,6 +190,34 @@ export default function App() {
 
   function switchAgent(id) {
     setActiveAgent(id)
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setUploadError('')
+    const form = new FormData()
+    form.append('file', file)
+    try {
+      const res = await fetch(`${API_BASE}/documents/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      })
+      if (!res.ok) { const err = await res.json(); setUploadError(err.detail || 'Upload failed'); return }
+      const newDoc = await res.json()
+      setDocs(prev => [newDoc, ...prev])
+      setDocsOpen(true)
+    } catch { setUploadError('Could not reach the server') }
+    finally { setUploading(false); e.target.value = '' }
+  }
+
+  async function handleDeleteDoc(docId) {
+    try {
+      await fetch(`${API_BASE}/documents/${docId}`, { method: 'DELETE', headers: authHeaders(token) })
+      setDocs(prev => prev.filter(d => d.id !== docId))
+    } catch {}
   }
 
   async function handleChangePw(e) {
@@ -253,6 +295,56 @@ export default function App() {
             </button>
           ))}
         </nav>
+
+        {/* Knowledge Base */}
+        <div className="px-4 mb-2">
+          <button
+            onClick={() => setDocsOpen(o => !o)}
+            className="w-full flex items-center justify-between px-2 py-2 text-on-surface-variant hover:text-primary text-xs font-label uppercase tracking-widest transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Icon name="folder_open" className="text-sm" />
+              Knowledge Base
+            </span>
+            <span className="flex items-center gap-2">
+              {docs.length > 0 && (
+                <span className="bg-primary-container text-on-primary-container text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                  {docs.length}
+                </span>
+              )}
+              <Icon name={docsOpen ? 'expand_less' : 'expand_more'} className="text-sm" />
+            </span>
+          </button>
+
+          {docsOpen && (
+            <div className="mt-1 space-y-1">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-all disabled:opacity-50"
+              >
+                <Icon name={uploading ? 'hourglass_empty' : 'upload_file'} className="text-sm" />
+                {uploading ? 'Processing...' : 'Upload document'}
+              </button>
+              <input ref={fileInputRef} type="file" accept=".pdf,.docx,.pptx,.txt" onChange={handleUpload} className="hidden" />
+              <p className="text-[10px] text-on-surface-variant/40 px-3 font-label">PDF · DOCX · PPTX · TXT</p>
+              {uploadError && <p className="text-[10px] text-error px-3 font-label">{uploadError}</p>}
+              {docs.length === 0
+                ? <p className="text-[10px] text-on-surface-variant/40 px-3 py-1 font-label">No documents yet</p>
+                : docs.map(doc => (
+                  <div key={doc.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-container group">
+                    <Icon name="description" className="text-sm text-on-surface-variant/50 shrink-0" />
+                    <span className="flex-1 text-[11px] text-on-surface-variant truncate font-label" title={doc.filename}>{doc.filename}</span>
+                    <span className="text-[9px] text-on-surface-variant/30 shrink-0 font-label">{doc.chunk_count}c</span>
+                    <button onClick={() => handleDeleteDoc(doc.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-error shrink-0" title="Remove">
+                      <Icon name="delete" className="text-sm" />
+                    </button>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+        </div>
 
         {/* User + logout */}
         <div className="px-4 border-t border-outline-variant/10 pt-4 space-y-1">
