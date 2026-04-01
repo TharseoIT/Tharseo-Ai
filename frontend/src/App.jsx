@@ -102,6 +102,8 @@ export default function App() {
   const [docsOpen, setDocsOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const fileInputRef = useRef(null)
   const chatFileInputRef = useRef(null)
   const bottomRef = useRef(null)
@@ -135,6 +137,33 @@ export default function App() {
       .then(r => r.ok ? r.json() : [])
       .then(data => setDocs(data))
       .catch(() => {})
+  }, [token])
+
+  // Validate token on load — log out gracefully if expired
+  useEffect(() => {
+    if (!token) return
+    fetch(`${API_BASE}/auth/me`, { headers: authHeaders(token) })
+      .then(r => {
+        if (r.status === 401) { setSessionExpired(true); handleLogout() }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Auto-refresh token every 12 hours while app is open
+  useEffect(() => {
+    if (!token) return
+    const id = setInterval(() => {
+      fetch(`${API_BASE}/auth/refresh`, { method: 'POST', headers: authHeaders(token) })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.access_token) {
+            localStorage.setItem('tharseo_token', data.access_token)
+            setToken(data.access_token)
+          }
+        })
+        .catch(() => {})
+    }, 12 * 60 * 60 * 1000)
+    return () => clearInterval(id)
   }, [token])
 
   function handleLogin(newToken, newUsername, newRole) {
@@ -191,6 +220,7 @@ export default function App() {
 
   function switchAgent(id) {
     setActiveAgent(id)
+    setSidebarOpen(false)
   }
 
   async function handleUpload(e) {
@@ -250,13 +280,22 @@ export default function App() {
       : ''
   }
 
-  if (!token) return <Login onLogin={handleLogin} />
+  if (!token) return <Login onLogin={handleLogin} sessionExpired={sessionExpired} />
 
   return (
     <div className="dark flex h-screen overflow-hidden bg-background">
 
+      {/* ── Mobile overlay ──────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside className="w-[260px] h-screen fixed left-0 top-0 bg-surface-container-lowest flex flex-col py-6 z-50">
+      <aside className={`w-[260px] h-screen fixed left-0 top-0 bg-surface-container-lowest flex flex-col py-6 z-50 transition-transform duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
 
         {/* Brand */}
         <div className="px-6 mb-8">
@@ -371,21 +410,29 @@ export default function App() {
       </aside>
 
       {/* ── Main ────────────────────────────────────────────────── */}
-      <main className="ml-[260px] flex flex-col h-screen bg-surface w-full">
+      <main className="flex flex-col h-screen bg-surface w-full md:ml-[260px]">
 
         {/* Top bar */}
-        <header className="h-16 px-10 flex items-center justify-between border-b border-outline-variant/15 bg-surface/60 backdrop-blur-xl sticky top-0 z-40">
-          <div>
-            <h2 className="font-headline text-sm font-bold text-primary tracking-tight">{agent.label}</h2>
-            <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">{agent.desc}</p>
+        <header className="h-16 px-4 md:px-10 flex items-center justify-between border-b border-outline-variant/15 bg-surface/60 backdrop-blur-xl sticky top-0 z-40 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              className="md:hidden p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors shrink-0"
+            >
+              <Icon name={sidebarOpen ? 'close' : 'menu'} />
+            </button>
+            <div className="min-w-0">
+              <h2 className="font-headline text-sm font-bold text-primary tracking-tight truncate">{agent.label}</h2>
+              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant hidden sm:block">{agent.desc}</p>
+            </div>
           </div>
-          <span className={`text-[10px] font-label uppercase tracking-widest ${loading ? 'text-secondary animate-pulse' : 'text-on-surface-variant/40'}`}>
+          <span className={`text-[10px] font-label uppercase tracking-widest shrink-0 ${loading ? 'text-secondary animate-pulse' : 'text-on-surface-variant/40'}`}>
             {loading ? 'Thinking...' : 'Ready'}
           </span>
         </header>
 
         {/* Messages */}
-        <section className="flex-1 overflow-y-auto no-scrollbar px-10 py-8 space-y-8">
+        <section className="flex-1 overflow-y-auto no-scrollbar px-4 md:px-10 py-6 md:py-8 space-y-8">
 
           {/* Empty state */}
           {messages.length === 0 && !loading && (
@@ -398,7 +445,7 @@ export default function App() {
                 <p className="text-on-surface-variant mt-2 text-sm">Your AI team, always on. Select an agent or click a prompt to get started.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 max-w-3xl w-full text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 max-w-3xl w-full text-left">
                 {AGENTS.map(a => (
                   <div key={a.id} className="flex flex-col rounded-xl bg-surface-container-low border border-outline-variant/10 overflow-hidden">
                     <button
@@ -502,7 +549,7 @@ export default function App() {
         </section>
 
         {/* Input */}
-        <div className="px-10 pb-8 bg-gradient-to-t from-surface via-surface/90 to-transparent">
+        <div className="px-4 md:px-10 pb-5 md:pb-8 bg-gradient-to-t from-surface via-surface/90 to-transparent">
           <div className="max-w-4xl mx-auto">
             <div className="bg-surface-container-high/80 backdrop-blur-2xl rounded-xl p-2 border border-outline-variant/20 shadow-2xl flex items-end gap-2 focus-within:border-primary/30 transition-all">
               <button

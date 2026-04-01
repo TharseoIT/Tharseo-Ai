@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://129.213.95.95:8000'
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, sessionExpired = false }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -52,6 +52,12 @@ export default function Login({ onLogin }) {
             <p className="text-on-surface-variant text-sm mt-1">Your AI team, always on.</p>
           </div>
         </div>
+
+        {sessionExpired && (
+          <div className="mb-4 bg-error-container/20 border border-error/20 text-error text-xs font-label rounded-lg px-4 py-3 text-center">
+            Your session expired. Please sign in again.
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-surface-container rounded-xl p-8 border border-outline-variant/10">

@@ -152,6 +152,13 @@ def get_me(current_user: User = Depends(get_current_user)):
     return UserMeResponse(username=current_user.username, email=current_user.email, user_role=current_user.user_role)
 
 
+@app.post("/auth/refresh", response_model=TokenResponse)
+def refresh_token(current_user: User = Depends(get_current_user)):
+    """Issue a fresh 30-day token for an already-authenticated user."""
+    token = create_access_token({"sub": current_user.email})
+    return TokenResponse(access_token=token, token_type="bearer", username=current_user.username, user_role=current_user.user_role)
+
+
 @app.post("/auth/change-password")
 def change_password(
     request: ChangePasswordRequest,
@@ -392,17 +399,25 @@ async def teams_webhook(request: Request, db: Session = Depends(get_db)):
     if not raw_text:
         return {"type": "message", "text": "I didn't catch that — try mentioning me with a question."}
 
-    # Route: @Terra → cloud agent, everything else → Nexus
-    if re.search(r"@terra", raw_text, re.IGNORECASE):
-        agent_id = "cloud"
-    else:
-        agent_id = "lead"
+    # Route by @mention: @Terra→cloud, @Apex→executive, @Forge→sales, @Sentinel→security, else→lead
+    TEAMS_MENTION_MAP = {
+        "terra":    "cloud",
+        "apex":     "executive",
+        "forge":    "sales",
+        "sentinel": "security",
+    }
+    agent_id = "lead"
+    for mention, aid in TEAMS_MENTION_MAP.items():
+        if re.search(rf"@{mention}", raw_text, re.IGNORECASE):
+            agent_id = aid
+            break
 
-    # Strip the @mention from the message
-    clean_text = re.sub(r"@(nexus|terra)\s*", "", raw_text, flags=re.IGNORECASE).strip()
+    AGENT_DISPLAY = {"lead": "Nexus", "cloud": "Terra", "executive": "Apex", "sales": "Forge", "security": "Sentinel"}
+
+    # Strip all @mentions from the message
+    clean_text = re.sub(r"@(nexus|terra|apex|forge|sentinel)\s*", "", raw_text, flags=re.IGNORECASE).strip()
     if not clean_text:
-        agent_name = "Terra" if agent_id == "cloud" else "Nexus"
-        return {"type": "message", "text": f"Hi! I'm {agent_name}. Ask me anything."}
+        return {"type": "message", "text": f"Hi! I'm {AGENT_DISPLAY[agent_id]}. Ask me anything."}
 
     # Load Teams conversation history and respond
     teams_user = get_or_create_teams_user(db)

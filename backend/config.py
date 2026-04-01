@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://tharseo:tharseo_ai_2026@localhost/tharseo_ai"
     jwt_secret: str = "change-this-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 1440  # 24 hours
+    jwt_expire_minutes: int = 43200  # 30 days
     teams_webhook_secret: str = ""  # Set after creating Teams outgoing webhook
     admin_secret: str = ""  # Required to create new accounts when registration is closed
     registration_open: bool = False  # Set to True temporarily to allow self-registration
