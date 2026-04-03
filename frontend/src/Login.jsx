@@ -53,7 +53,7 @@ export default function Login({ onLogin, sessionExpired = false }) {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-10 gap-5">
-          <img src="/tharseo-logo.png" alt="Tharseo" className="w-16 h-16 drop-shadow-lg" />
+          <img src="/tharseo-logo.png" alt="Tharseo" className="w-40 h-auto drop-shadow-lg" />
           <div className="text-center">
             <h1 className="font-headline text-4xl font-extrabold tracking-tighter text-white">Tharseo AI</h1>
             <p className="text-white/50 text-sm mt-2 tracking-wide">Your AI team, always on.</p>
