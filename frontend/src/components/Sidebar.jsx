@@ -25,7 +25,7 @@ export default function Sidebar({
       {/* Brand */}
       <div className="px-6 mb-8">
         <div className="flex flex-col items-center text-center gap-3">
-          <img src="/tharseo-logo.png" alt="Tharseo" className="w-36 h-auto drop-shadow-lg" />
+          <img src="/tharseo-logo.png" alt="Tharseo" className="w-48 h-auto drop-shadow-lg" />
           <div>
             <h1 className="text-xl font-extrabold text-white tracking-tight">Tharseo AI</h1>
             <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mt-1">Your AI team, always on.</p>
