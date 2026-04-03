@@ -1,6 +1,7 @@
 fastapi==0.115.0
 uvicorn==0.30.6
 groq==0.13.0
+httpx<0.28.0
 langgraph==0.2.28
 langchain==0.3.0
 langchain-groq==0.2.0

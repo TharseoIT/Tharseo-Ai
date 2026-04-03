@@ -91,7 +91,7 @@ Runs: `git add -A && git commit && git push`, then SSH pull + `npm run build` + 
 
 ## Groq / LLM Quirks
 - `bind_tools` / function calling does NOT work with Llama 3.3 70B — outputs malformed JSON. Use pre-injection pattern.
-- Pin `groq==0.13.0` (0.11.0 has httpx proxies TypeError)
+- Pin `groq==0.13.0` + `httpx<0.28.0` — httpx 0.28+ removed the `proxies` kwarg that groq passes internally, causing a TypeError on startup
 - Pin `bcrypt==4.2.1` (5.0.0 raises ValueError with passlib)
 - Embeddings model `all-MiniLM-L6-v2` is pre-downloaded at `/home/tharseo/.cache/huggingface/`
 

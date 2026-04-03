@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import Login from './Login'
+import Icon from './components/Icon'
+import Sidebar from './components/Sidebar'
+import EmptyState from './components/EmptyState'
+import ChatInput from './components/ChatInput'
+import ChangePasswordModal from './components/ChangePasswordModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://129.213.95.95:8000'
 
@@ -74,12 +79,14 @@ const ROLE_AGENTS = {
   security:  ['lead', 'executive', 'sales', 'security'],
 }
 
-function Icon({ name, className = '' }) {
-  return <span className={`material-symbols-outlined ${className}`}>{name}</span>
-}
-
 function authHeaders(token) {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+}
+
+function fmt(date) {
+  return date instanceof Date && !isNaN(date)
+    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : ''
 }
 
 export default function App() {
@@ -111,7 +118,6 @@ export default function App() {
   const AGENTS = ALL_AGENTS.filter(a => (ROLE_AGENTS[userRole] || []).includes(a.id))
   const agent = AGENTS.find(a => a.id === activeAgent) || AGENTS[0]
 
-  // Load history from DB whenever agent changes
   useEffect(() => {
     if (!token) return
     setMessages([])
@@ -139,7 +145,6 @@ export default function App() {
       .catch(() => {})
   }, [token])
 
-  // Validate token on load — log out gracefully if expired
   useEffect(() => {
     if (!token) return
     fetch(`${API_BASE}/auth/me`, { headers: authHeaders(token) })
@@ -149,7 +154,6 @@ export default function App() {
       .catch(() => {})
   }, [])
 
-  // Auto-refresh token every 12 hours while app is open
   useEffect(() => {
     if (!token) return
     const id = setInterval(() => {
@@ -190,11 +194,9 @@ export default function App() {
   async function sendMessage() {
     const text = input.trim()
     if (!text || loading) return
-
     setMessages(prev => [...prev, { role: 'user', content: text, ts: new Date() }])
     setInput('')
     setLoading(true)
-
     try {
       const res = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
@@ -274,18 +276,20 @@ export default function App() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  function fmt(date) {
-    return date instanceof Date && !isNaN(date)
-      ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : ''
-  }
-
   if (!token) return <Login onLogin={handleLogin} sessionExpired={sessionExpired} />
 
   return (
-    <div className="dark flex h-screen overflow-hidden bg-background">
+    <div className="dark flex h-screen overflow-hidden" style={{ background: '#050d1a' }}>
 
-      {/* ── Mobile overlay ──────────────────────────────────────── */}
+      {/* Aurora background */}
+      <div className="aurora-bg">
+        <div className="aurora-orb aurora-orb-1" />
+        <div className="aurora-orb aurora-orb-2" />
+        <div className="aurora-orb aurora-orb-3" />
+        <div className="aurora-orb aurora-orb-4" />
+      </div>
+
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
@@ -293,140 +297,42 @@ export default function App() {
         />
       )}
 
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside className={`w-[260px] h-screen fixed left-0 top-0 bg-surface-container-lowest flex flex-col py-6 z-50 transition-transform duration-300
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+      <Sidebar
+        agents={AGENTS}
+        activeAgent={activeAgent}
+        onSwitchAgent={switchAgent}
+        onNewSession={clearChat}
+        sidebarOpen={sidebarOpen}
+        docs={docs}
+        docsOpen={docsOpen}
+        onToggleDocs={() => setDocsOpen(o => !o)}
+        uploading={uploading}
+        uploadError={uploadError}
+        fileInputRef={fileInputRef}
+        onUpload={handleUpload}
+        onDeleteDoc={handleDeleteDoc}
+        username={username}
+        onChangePassword={() => { setShowChangePw(true); setPwError(''); setPwSuccess(false) }}
+        onLogout={handleLogout}
+      />
 
-        {/* Brand */}
-        <div className="px-6 mb-8">
-          <div className="flex items-center gap-3">
-            <img src="/tharseo-logo.svg" alt="Tharseo" className="w-10 h-10" />
-            <div>
-              <h1 className="font-headline text-xl font-bold text-primary tracking-tighter">Tharseo AI</h1>
-              <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant opacity-60">Your AI team, always on.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* New Session */}
-        <div className="px-4 mb-6">
-          <button
-            onClick={clearChat}
-            className="w-full bg-primary-container hover:bg-[#1f3d1a] text-on-primary-container py-2.5 px-4 rounded flex items-center justify-center gap-2 transition-all font-headline font-semibold text-sm active:scale-95"
-          >
-            <Icon name="add" className="text-sm" />
-            New Session
-          </button>
-        </div>
-
-        {/* Agent list */}
-        <nav className="flex-1">
-          {AGENTS.map(a => (
-            <button
-              key={a.id}
-              onClick={() => switchAgent(a.id)}
-              className={`w-full text-left px-6 py-3.5 flex items-center gap-3 transition-all text-sm font-headline tracking-tight
-                ${activeAgent === a.id
-                  ? 'border-l-2 border-tharseo-yellow bg-tharseo-teal/20 text-tharseo-green font-semibold'
-                  : 'text-on-surface-variant hover:text-tharseo-green hover:bg-surface-container'}`}
-            >
-              <Icon name={a.icon} />
-              {a.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* Knowledge Base */}
-        <div className="px-4 mb-2">
-          <button
-            onClick={() => setDocsOpen(o => !o)}
-            className="w-full flex items-center justify-between px-2 py-2 text-on-surface-variant hover:text-primary text-xs font-label uppercase tracking-widest transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <Icon name="folder_open" className="text-sm" />
-              Knowledge Base
-            </span>
-            <span className="flex items-center gap-2">
-              {docs.length > 0 && (
-                <span className="bg-primary-container text-on-primary-container text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                  {docs.length}
-                </span>
-              )}
-              <Icon name={docsOpen ? 'expand_less' : 'expand_more'} className="text-sm" />
-            </span>
-          </button>
-
-          {docsOpen && (
-            <div className="mt-1 space-y-1">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-all disabled:opacity-50"
-              >
-                <Icon name={uploading ? 'hourglass_empty' : 'upload_file'} className="text-sm" />
-                {uploading ? 'Processing...' : 'Upload document'}
-              </button>
-              <input ref={fileInputRef} type="file" accept=".pdf,.docx,.pptx,.txt" onChange={handleUpload} className="hidden" />
-              <p className="text-[10px] text-on-surface-variant/40 px-3 font-label">PDF · DOCX · PPTX · TXT</p>
-              {uploadError && <p className="text-[10px] text-error px-3 font-label">{uploadError}</p>}
-              {docs.length === 0
-                ? <p className="text-[10px] text-on-surface-variant/40 px-3 py-1 font-label">No documents yet</p>
-                : docs.map(doc => (
-                  <div key={doc.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-container group">
-                    <Icon name="description" className="text-sm text-on-surface-variant/50 shrink-0" />
-                    <span className="flex-1 text-[11px] text-on-surface-variant truncate font-label" title={doc.filename}>{doc.filename}</span>
-                    <span className="text-[9px] text-on-surface-variant/30 shrink-0 font-label">{doc.chunk_count}c</span>
-                    <button onClick={() => handleDeleteDoc(doc.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-error shrink-0" title="Remove">
-                      <Icon name="delete" className="text-sm" />
-                    </button>
-                  </div>
-                ))
-              }
-            </div>
-          )}
-        </div>
-
-        {/* User + logout */}
-        <div className="px-4 border-t border-outline-variant/10 pt-4 space-y-1">
-          <div className="flex items-center gap-3 px-4 py-2">
-            <Icon name="account_circle" className="text-on-surface-variant" />
-            <span className="text-sm font-label text-on-surface-variant truncate flex-1">{username}</span>
-          </div>
-          <button
-            onClick={() => { setShowChangePw(true); setPwError(''); setPwSuccess(false) }}
-            className="w-full flex items-center gap-3 text-on-surface-variant hover:text-primary px-4 py-2.5 transition-colors rounded hover:bg-surface-container text-sm font-headline"
-          >
-            <Icon name="lock" />
-            Change password
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 text-on-surface-variant hover:text-error px-4 py-2.5 transition-colors rounded hover:bg-error-container/10 text-sm font-headline"
-          >
-            <Icon name="logout" />
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main ────────────────────────────────────────────────── */}
-      <main className="flex flex-col h-screen bg-surface w-full md:ml-[260px]">
+      <main className="flex flex-col h-screen w-full md:ml-[260px] relative z-10">
 
         {/* Top bar */}
-        <header className="h-16 px-4 md:px-10 flex items-center justify-between border-b border-outline-variant/15 bg-surface/60 backdrop-blur-xl sticky top-0 z-40 gap-3">
+        <header className="h-16 px-4 md:px-10 flex items-center justify-between border-b border-white/5 bg-black/20 backdrop-blur-xl sticky top-0 z-40 gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(o => !o)}
-              className="md:hidden p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors shrink-0"
+              className="md:hidden p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-colors shrink-0"
             >
               <Icon name={sidebarOpen ? 'close' : 'menu'} />
             </button>
             <div className="min-w-0">
-              <h2 className="font-headline text-sm font-bold text-primary tracking-tight truncate">{agent.label}</h2>
-              <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant hidden sm:block">{agent.desc}</p>
+              <h2 className="font-headline text-base font-extrabold text-white tracking-tight truncate">{agent.label}</h2>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/35 hidden sm:block">{agent.desc}</p>
             </div>
           </div>
-          <span className={`text-[10px] font-label uppercase tracking-widest shrink-0 ${loading ? 'text-secondary animate-pulse' : 'text-on-surface-variant/40'}`}>
+          <span className={`text-[10px] uppercase tracking-widest shrink-0 ${loading ? 'text-[#95B552] animate-pulse' : 'text-white/20'}`}>
             {loading ? 'Thinking...' : 'Ready'}
           </span>
         </header>
@@ -434,89 +340,51 @@ export default function App() {
         {/* Messages */}
         <section className="flex-1 overflow-y-auto no-scrollbar px-4 md:px-10 py-6 md:py-8 space-y-8">
 
-          {/* Empty state */}
           {messages.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-16">
-              <div className="w-20 h-20 rounded-2xl bg-surface-container flex items-center justify-center p-3">
-                <img src="/tharseo-logo.svg" alt="Tharseo" className="w-full h-full" />
-              </div>
-              <div>
-                <h2 className="font-headline text-4xl font-extrabold tracking-tighter text-on-surface">Tharseo AI</h2>
-                <p className="text-on-surface-variant mt-2 text-sm">Your AI team, always on. Select an agent or click a prompt to get started.</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 max-w-3xl w-full text-left">
-                {AGENTS.map(a => (
-                  <div key={a.id} className="flex flex-col rounded-xl bg-surface-container-low border border-outline-variant/10 overflow-hidden">
-                    <button
-                      onClick={() => switchAgent(a.id)}
-                      className={`flex items-center gap-3 px-5 py-4 transition-all hover:bg-surface-container w-full text-left
-                        ${activeAgent === a.id ? 'border-l-2 border-tharseo-yellow' : 'border-l-2 border-transparent'}`}
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
-                        <Icon name={a.icon} className="text-primary" />
-                      </div>
-                      <div>
-                        <div className="font-headline font-bold text-sm text-on-surface">{a.label}</div>
-                        <div className="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-label">{a.desc}</div>
-                      </div>
-                    </button>
-                    <p className="text-xs text-on-surface-variant/70 leading-relaxed px-5 pb-3">{a.about}</p>
-                    <div className="flex flex-col gap-1.5 px-5 pb-5">
-                      {a.prompts.map(prompt => (
-                        <button
-                          key={prompt}
-                          onClick={() => { switchAgent(a.id); setInput(prompt) }}
-                          className="text-left text-xs text-on-surface-variant hover:text-primary bg-surface-container hover:bg-surface-container-high px-3 py-2.5 rounded-lg transition-all flex items-center gap-2 group"
-                        >
-                          <Icon name="arrow_forward" className="text-sm text-on-surface-variant/30 group-hover:text-primary shrink-0" />
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <EmptyState
+              agents={AGENTS}
+              activeAgent={activeAgent}
+              onSwitchAgent={switchAgent}
+              onSetInput={setInput}
+            />
           )}
 
-          {/* Message thread */}
           {messages.map((msg, i) =>
             msg.role === 'user' ? (
               <div key={i} className="flex flex-col items-end max-w-3xl ml-auto w-full">
-                <div className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-1.5">You • {fmt(msg.ts)}</div>
-                <div className="bg-primary-container text-on-surface px-5 py-3.5 rounded-xl rounded-tr-none max-w-xl shadow-lg">
-                  <p className="font-body leading-relaxed text-sm whitespace-pre-wrap">{msg.content}</p>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-white/30 mb-2">You • {fmt(msg.ts)}</div>
+                <div className="bg-[#175873]/70 backdrop-blur-sm text-white px-5 py-3.5 rounded-2xl rounded-tr-sm max-w-xl shadow-lg border border-white/10">
+                  <p className="leading-relaxed text-sm whitespace-pre-wrap">{msg.content}</p>
                 </div>
               </div>
             ) : (
               <div key={i} className="flex flex-col items-start w-full">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center border border-outline-variant/20">
-                    <Icon name={agent.icon} className="text-secondary text-base" />
+                  <div className="w-8 h-8 rounded-xl bg-white/8 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                    <Icon name={agent.icon} className="text-[#95B552] text-base" />
                   </div>
-                  <div className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">{agent.label} • {fmt(msg.ts)}</div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-white/30">{agent.label} • {fmt(msg.ts)}</div>
                 </div>
-                <div className="bg-surface-container p-6 rounded-xl border-l-2 border-secondary/30 max-w-3xl w-full shadow-lg prose-tharseo">
+                <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/8 max-w-3xl w-full shadow-xl">
                   <ReactMarkdown
                     components={{
-                      p:      ({children}) => <p className="text-on-surface-variant text-sm leading-relaxed mb-3 last:mb-0">{children}</p>,
-                      h1:     ({children}) => <h1 className="font-headline font-bold text-on-surface text-lg mb-3 mt-4 first:mt-0">{children}</h1>,
-                      h2:     ({children}) => <h2 className="font-headline font-bold text-on-surface text-base mb-2 mt-4 first:mt-0">{children}</h2>,
-                      h3:     ({children}) => <h3 className="font-headline font-semibold text-on-surface text-sm mb-2 mt-3 first:mt-0">{children}</h3>,
-                      ul:     ({children}) => <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-on-surface-variant">{children}</ul>,
-                      ol:     ({children}) => <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-on-surface-variant">{children}</ol>,
+                      p:      ({children}) => <p className="text-white/80 text-sm leading-relaxed mb-3 last:mb-0">{children}</p>,
+                      h1:     ({children}) => <h1 className="font-extrabold text-white text-xl mb-3 mt-4 first:mt-0 tracking-tight">{children}</h1>,
+                      h2:     ({children}) => <h2 className="font-bold text-white text-lg mb-2 mt-4 first:mt-0 tracking-tight">{children}</h2>,
+                      h3:     ({children}) => <h3 className="font-semibold text-white text-base mb-2 mt-3 first:mt-0">{children}</h3>,
+                      ul:     ({children}) => <ul className="list-disc list-inside space-y-1.5 mb-3 text-sm text-white/70">{children}</ul>,
+                      ol:     ({children}) => <ol className="list-decimal list-inside space-y-1.5 mb-3 text-sm text-white/70">{children}</ol>,
                       li:     ({children}) => <li className="leading-relaxed">{children}</li>,
                       code:   ({node, inline, className, children, ...props}) => {
                         const isBlock = !inline
                         return isBlock
-                          ? <pre className="bg-surface-container-lowest rounded-lg p-4 overflow-x-auto mb-3 mt-1"><code className="text-primary text-xs font-mono whitespace-pre">{children}</code></pre>
-                          : <code className="bg-surface-container-high text-primary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>{children}</code>
+                          ? <pre className="bg-black/30 backdrop-blur-sm rounded-xl p-4 overflow-x-auto mb-3 mt-1 border border-white/5"><code className="text-[#95B552] text-xs font-mono whitespace-pre">{children}</code></pre>
+                          : <code className="bg-black/20 text-[#95B552] px-1.5 py-0.5 rounded text-xs font-mono" {...props}>{children}</code>
                       },
                       pre: ({children}) => <>{children}</>,
-                      strong: ({children}) => <strong className="font-semibold text-on-surface">{children}</strong>,
-                      a:      ({href, children}) => <a href={href} className="text-primary underline hover:text-tharseo-green-light" target="_blank" rel="noreferrer">{children}</a>,
-                      blockquote: ({children}) => <blockquote className="border-l-2 border-secondary/50 pl-4 italic text-on-surface-variant/70 my-3">{children}</blockquote>,
+                      strong: ({children}) => <strong className="font-semibold text-white">{children}</strong>,
+                      a:      ({href, children}) => <a href={href} className="text-[#95B552] underline hover:text-[#aed06a]" target="_blank" rel="noreferrer">{children}</a>,
+                      blockquote: ({children}) => <blockquote className="border-l-2 border-[#95B552]/40 pl-4 italic text-white/50 my-3">{children}</blockquote>,
                     }}
                   >
                     {msg.content}
@@ -530,15 +398,15 @@ export default function App() {
           {loading && (
             <div className="flex flex-col items-start w-full">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center border border-outline-variant/20">
-                  <Icon name={agent.icon} className="text-secondary text-base" />
+                <div className="w-8 h-8 rounded-xl bg-white/8 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <Icon name={agent.icon} className="text-[#95B552] text-base" />
                 </div>
-                <div className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">{agent.label} • thinking...</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-white/30">{agent.label} • thinking...</div>
               </div>
-              <div className="bg-surface-container p-5 rounded-xl border-l-2 border-secondary/30 shadow-lg">
+              <div className="bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/8 shadow-xl">
                 <div className="flex gap-1.5 items-center h-4">
                   {[0,1,2].map(i => (
-                    <span key={i} className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                    <span key={i} className="w-1.5 h-1.5 bg-[#95B552] rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
                   ))}
                 </div>
               </div>
@@ -548,90 +416,30 @@ export default function App() {
           <div ref={bottomRef} />
         </section>
 
-        {/* Input */}
-        <div className="px-4 md:px-10 pb-5 md:pb-8 bg-gradient-to-t from-surface via-surface/90 to-transparent">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-surface-container-high/80 backdrop-blur-2xl rounded-xl p-2 border border-outline-variant/20 shadow-2xl flex items-end gap-2 focus-within:border-primary/30 transition-all">
-              <button
-                onClick={() => chatFileInputRef.current?.click()}
-                disabled={uploading}
-                title="Upload a document to your Knowledge Base"
-                className="p-3 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center mb-0.5 shrink-0"
-              >
-                <Icon name={uploading ? 'hourglass_empty' : 'attach_file'} />
-              </button>
-              <input ref={chatFileInputRef} type="file" accept=".pdf,.docx,.pptx,.txt" onChange={handleUpload} className="hidden" />
-              <textarea
-                rows={1}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={`Message ${agent.label}...`}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/40 py-3 px-3 resize-none font-body text-sm outline-none"
-                style={{ minHeight: '44px', maxHeight: '160px' }}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() || loading}
-                className="bg-primary text-on-primary p-3 rounded-lg transition-all active:scale-90 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center mb-0.5"
-              >
-                <Icon name="arrow_upward" />
-              </button>
-            </div>
-            <p className="mt-2 text-center font-label text-[10px] uppercase tracking-widest text-on-surface-variant/30">
-              Shift+Enter for new line · Enter to send
-            </p>
-          </div>
-        </div>
+        <ChatInput
+          fileInputRef={chatFileInputRef}
+          uploading={uploading}
+          onUpload={handleUpload}
+          input={input}
+          onInputChange={setInput}
+          onKeyDown={handleKeyDown}
+          onSend={sendMessage}
+          loading={loading}
+          agentLabel={agent.label}
+        />
 
       </main>
-      {/* ── Change Password Modal ───────────────────────────────── */}
+
       {showChangePw && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container rounded-xl p-8 w-full max-w-sm border border-outline-variant/10 shadow-2xl">
-            <h2 className="font-headline font-bold text-on-surface mb-6 text-sm uppercase tracking-widest">Change Password</h2>
-            {pwSuccess ? (
-              <p className="text-primary text-sm font-label text-center py-4">Password updated successfully.</p>
-            ) : (
-              <form onSubmit={handleChangePw} className="flex flex-col gap-4">
-                {[
-                  { label: 'Current Password', key: 'current' },
-                  { label: 'New Password',     key: 'next' },
-                  { label: 'Confirm New',      key: 'confirm' },
-                ].map(({ label, key }) => (
-                  <div key={key}>
-                    <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant block mb-1.5">{label}</label>
-                    <input
-                      type="password"
-                      value={pwForm[key]}
-                      onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
-                      required
-                      className="w-full bg-surface-container-high border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface text-sm font-body focus:outline-none focus:border-primary/50 transition-colors"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                ))}
-                {pwError && <p className="text-error text-xs font-label">{pwError}</p>}
-                <div className="flex gap-3 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowChangePw(false)}
-                    className="flex-1 py-2.5 rounded-lg border border-outline-variant/20 text-on-surface-variant text-sm font-headline hover:bg-surface-container-high transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={pwLoading}
-                    className="flex-1 bg-primary text-on-primary py-2.5 rounded-lg text-sm font-headline font-bold hover:brightness-110 disabled:opacity-50 transition-all"
-                  >
-                    {pwLoading ? 'Saving...' : 'Update'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+        <ChangePasswordModal
+          onClose={() => setShowChangePw(false)}
+          onSubmit={handleChangePw}
+          form={pwForm}
+          onChange={(key, val) => setPwForm(f => ({ ...f, [key]: val }))}
+          error={pwError}
+          success={pwSuccess}
+          loading={pwLoading}
+        />
       )}
 
     </div>

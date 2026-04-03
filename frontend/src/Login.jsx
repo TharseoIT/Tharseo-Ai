@@ -39,72 +39,79 @@ export default function Login({ onLogin, sessionExpired = false }) {
   }
 
   return (
-    <div className="dark min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="dark min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+
+      {/* Aurora background */}
+      <div className="aurora-bg">
+        <div className="aurora-orb aurora-orb-1" />
+        <div className="aurora-orb aurora-orb-2" />
+        <div className="aurora-orb aurora-orb-3" />
+        <div className="aurora-orb aurora-orb-4" />
+      </div>
+
+      <div className="w-full max-w-sm relative z-10">
 
         {/* Logo */}
-        <div className="flex flex-col items-center mb-10 gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center p-2">
-            <img src="/tharseo-logo.svg" alt="Tharseo" className="w-full h-full" />
-          </div>
+        <div className="flex flex-col items-center mb-10 gap-5">
+          <img src="/tharseo-logo.svg" alt="Tharseo" className="w-16 h-16 drop-shadow-lg" />
           <div className="text-center">
-            <h1 className="font-headline text-3xl font-extrabold tracking-tighter text-on-surface">Tharseo AI</h1>
-            <p className="text-on-surface-variant text-sm mt-1">Your AI team, always on.</p>
+            <h1 className="font-headline text-4xl font-extrabold tracking-tighter text-white">Tharseo AI</h1>
+            <p className="text-white/50 text-sm mt-2 tracking-wide">Your AI team, always on.</p>
           </div>
         </div>
 
         {sessionExpired && (
-          <div className="mb-4 bg-error-container/20 border border-error/20 text-error text-xs font-label rounded-lg px-4 py-3 text-center">
+          <div className="mb-4 bg-red-500/10 border border-red-400/20 text-red-300 text-xs font-label rounded-xl px-4 py-3 text-center backdrop-blur-sm">
             Your session expired. Please sign in again.
           </div>
         )}
 
-        {/* Card */}
-        <div className="bg-surface-container rounded-xl p-8 border border-outline-variant/10">
-          <h2 className="font-headline font-bold text-on-surface mb-6 text-sm uppercase tracking-widest">
+        {/* Glass card */}
+        <div className="bg-white/5 backdrop-blur-2xl rounded-2xl p-8 border border-white/10 shadow-2xl">
+          <h2 className="font-headline font-bold text-white/60 mb-6 text-xs uppercase tracking-[0.2em]">
             Sign in
           </h2>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant block mb-1.5">Work Email</label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/40 block mb-2">Work Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoFocus
-                className="w-full bg-surface-container-high border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface text-sm font-body focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-white/30 focus:bg-white/8 transition-all placeholder:text-white/20"
                 placeholder="you@tharseoit.com"
               />
             </div>
             <div>
-              <label className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant block mb-1.5">Password</label>
+              <label className="text-[10px] uppercase tracking-[0.18em] text-white/40 block mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                className="w-full bg-surface-container-high border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface text-sm font-body focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-white/30 focus:bg-white/8 transition-all placeholder:text-white/20"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <p className="text-error text-xs font-label">{error}</p>
+              <p className="text-red-400 text-xs">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary text-on-primary font-headline font-bold py-3 rounded-lg transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full bg-[#175873] hover:bg-[#1e6d8e] text-white font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2 text-sm tracking-wide shadow-lg shadow-[#175873]/30"
             >
-              {loading ? 'Please wait...' : 'Sign in'}
+              {loading ? 'Please wait...' : 'Sign in →'}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-on-surface-variant text-xs mt-6 font-label">
+        <p className="text-center text-white/25 text-xs mt-6">
           Need access? Contact Antonio.
         </p>
 

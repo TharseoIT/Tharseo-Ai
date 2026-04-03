@@ -16,14 +16,6 @@ provider "oci" {
   region           = var.region
 }
 
-locals {
-  common_tags = {
-    project     = var.project
-    environment = var.environment
-    owner       = "antonio"
-  }
-}
-
 # --- NETWORKING ---
 
 resource "oci_core_vcn" "tharseo_ai_vcn" {
