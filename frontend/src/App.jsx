@@ -279,7 +279,7 @@ export default function App() {
   if (!token) return <Login onLogin={handleLogin} sessionExpired={sessionExpired} />
 
   return (
-    <div className="dark flex h-screen overflow-hidden" style={{ background: '#050d1a' }}>
+    <div className="dark flex h-screen overflow-hidden relative" style={{ background: '#050d1a' }}>
 
       {/* Aurora background */}
       <div className="aurora-bg">

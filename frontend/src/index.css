@@ -38,7 +38,7 @@ body {
 }
 
 .aurora-bg {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   overflow: hidden;
@@ -48,35 +48,35 @@ body {
 .aurora-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(110px);
+  filter: blur(100px);
   will-change: transform;
   pointer-events: none;
 }
 .aurora-orb-1 {
-  width: 650px; height: 650px;
-  background: radial-gradient(circle, #175873 0%, transparent 70%);
-  top: -15%; left: -8%;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, #175873 0%, transparent 65%);
+  top: -10%; left: -5%;
   animation: orb1 22s ease-in-out infinite;
-  opacity: 0.55;
+  opacity: 0.75;
 }
 .aurora-orb-2 {
-  width: 500px; height: 500px;
-  background: radial-gradient(circle, #345C72 0%, transparent 70%);
-  top: 35%; right: -8%;
+  width: 550px; height: 550px;
+  background: radial-gradient(circle, #1e6d8e 0%, transparent 65%);
+  top: 30%; right: -5%;
   animation: orb2 28s ease-in-out infinite;
-  opacity: 0.45;
+  opacity: 0.65;
 }
 .aurora-orb-3 {
-  width: 420px; height: 420px;
-  background: radial-gradient(circle, #2d6e3e 0%, transparent 70%);
-  bottom: -12%; left: 28%;
+  width: 480px; height: 480px;
+  background: radial-gradient(circle, #2d6e3e 0%, transparent 65%);
+  bottom: -8%; left: 25%;
   animation: orb3 20s ease-in-out infinite;
-  opacity: 0.35;
+  opacity: 0.55;
 }
 .aurora-orb-4 {
-  width: 320px; height: 320px;
-  background: radial-gradient(circle, #1a3a5c 0%, transparent 70%);
-  top: 18%; left: 42%;
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, #345C72 0%, transparent 65%);
+  top: 15%; left: 40%;
   animation: orb1 34s ease-in-out infinite reverse;
-  opacity: 0.4;
+  opacity: 0.6;
 }
