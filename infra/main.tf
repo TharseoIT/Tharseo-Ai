@@ -70,8 +70,8 @@ resource "oci_core_network_security_group_security_rule" "ssh_ingress" {
   }
 }
 
-# FastAPI backend port
-resource "oci_core_network_security_group_security_rule" "fastapi_ingress" {
+# HTTP — redirect to HTTPS and Talent AI access
+resource "oci_core_network_security_group_security_rule" "http_ingress" {
   network_security_group_id = oci_core_network_security_group.tharseo_ai_nsg.id
   direction                 = "INGRESS"
   protocol                  = "6"
@@ -80,14 +80,14 @@ resource "oci_core_network_security_group_security_rule" "fastapi_ingress" {
 
   tcp_options {
     destination_port_range {
-      min = 8000
-      max = 8000
+      min = 80
+      max = 80
     }
   }
 }
 
-# React frontend port
-resource "oci_core_network_security_group_security_rule" "frontend_ingress" {
+# HTTPS — Tharseo AI (ai.tharseoit.com)
+resource "oci_core_network_security_group_security_rule" "https_ingress" {
   network_security_group_id = oci_core_network_security_group.tharseo_ai_nsg.id
   direction                 = "INGRESS"
   protocol                  = "6"
@@ -96,11 +96,12 @@ resource "oci_core_network_security_group_security_rule" "frontend_ingress" {
 
   tcp_options {
     destination_port_range {
-      min = 3000
-      max = 3000
+      min = 443
+      max = 443
     }
   }
 }
+
 
 # Allow all egress (outbound) — needed for package installs, Groq API calls
 resource "oci_core_network_security_group_security_rule" "egress_all" {

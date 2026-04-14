@@ -13,12 +13,14 @@ output "ssh_command" {
   value       = "ssh -i ~/Downloads/ssh-key-2026-03-09.key opc@${oci_core_instance.tharseo_ai.public_ip}"
 }
 
-output "backend_url" {
-  description = "URL for the FastAPI backend"
-  value       = "http://${oci_core_instance.tharseo_ai.public_ip}:8000"
+output "tharseo_ai_url" {
+  description = "Tharseo AI — public URL (HTTPS via nginx)"
+  value       = "https://ai.tharseoit.com"
 }
 
-output "frontend_url" {
-  description = "URL for the React frontend"
-  value       = "http://${oci_core_instance.tharseo_ai.public_ip}:3000"
+output "talent_ai_url" {
+  # TODO: Migrate to https://talent.tharseoit.com once DNS is configured and SSL cert is provisioned.
+  # Ensure the NSG allows TCP 443 ingress before switching.
+  description = "Talent AI — temporary direct URL (move to talent.tharseoit.com + SSL when DNS is set)"
+  value       = "http://${oci_core_instance.tharseo_ai.public_ip}:3001"
 }

@@ -1,7 +1,39 @@
 from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from config import settings
 from typing import List, Optional
+
+
+def get_llm():
+    provider = settings.llm_provider.lower().strip()
+
+    if provider == "openai":
+        if not settings.openai_api_key:
+            raise ValueError("llm_provider is 'openai' but OPENAI_API_KEY is not set")
+        return ChatOpenAI(
+            api_key=settings.openai_api_key,
+            model=settings.llm_model or "gpt-4o",
+        )
+
+    if provider == "groq":
+        if not settings.groq_api_key:
+            raise ValueError("llm_provider is 'groq' but GROQ_API_KEY is not set")
+        return ChatGroq(
+            api_key=settings.groq_api_key,
+            model=settings.llm_model or "llama-3.3-70b-versatile",
+        )
+
+    if provider == "google":
+        if not settings.google_api_key:
+            raise ValueError("llm_provider is 'google' but GOOGLE_API_KEY is not set")
+        return ChatGoogleGenerativeAI(
+            google_api_key=settings.google_api_key,
+            model=settings.llm_model or "gemma-3-27b-it",
+        )
+
+    raise ValueError(f"Unsupported LLM provider: {settings.llm_provider}")
 
 
 class BaseAgent:
@@ -16,10 +48,7 @@ class BaseAgent:
         self.system_prompt = system_prompt
         self.search_tool = search_tool
         self.oci_tool = oci_tool
-        self.llm = ChatGroq(
-            api_key=settings.groq_api_key,
-            model=settings.llm_model,
-        )
+        self.llm = get_llm()
 
     def _should_search(self, message: str) -> bool:
         """Detect if the question likely needs live/current information."""

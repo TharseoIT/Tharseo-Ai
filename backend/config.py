@@ -5,7 +5,10 @@ from pydantic import ConfigDict
 class Settings(BaseSettings):
     model_config = ConfigDict(env_file=".env", protected_namespaces=("settings_",))
 
-    groq_api_key: str
+    groq_api_key: str = ""
+    openai_api_key: str = ""
+    google_api_key: str = ""
+    llm_provider: str = "groq"
     llm_model: str = "llama-3.3-70b-versatile"
     app_name: str = "Tharseo AI"
     database_url: str = "postgresql://tharseo:tharseo_ai_2026@localhost/tharseo_ai"
